@@ -18,7 +18,20 @@ def convert_map_to_road_map(ego_map):
     return (~mask)
 
 def collate_fn(batch):
-    return tuple(zip(*batch))
+    concated_input=[]
+    for i in range(len(batch)):
+        concated_input.append(torch.reshape(batch[i][0],(1,18,256,320)))
+    concated_input=torch.cat(concated_input,0)
+    bbox_list=[]
+    category_list=[]
+    for i in range(len(batch)):
+        bbox_list.append(batch[i][1]['bounding_box'])
+        category_list.append(batch[i][1]['category'])
+    concated_roadmap=[]
+    for i in range(len(batch)):
+        concated_roadmap.append(batch[i][2].unsqueeze(0))
+    concated_roadmap=torch.cat(concated_roadmap,0).long()
+    return [concated_input,bbox_list,category_list,concated_roadmap]
 
 def draw_box(ax, corners, color):
     point_squence = torch.stack([corners[:, 0], corners[:, 1], corners[:, 3], corners[:, 2], corners[:, 0]])
