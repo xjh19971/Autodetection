@@ -82,7 +82,7 @@ class UnlabeledDataset(torch.utils.data.Dataset):
 
 # The dataset class for labeled data.
 class LabeledDataset(torch.utils.data.Dataset):    
-    def __init__(self, image_folder, annotation_file, scene_index, transform, extra_info=True):
+    def __init__(self, image_folder, annotation_file, scene_index, transform, roadmap_transform, extra_info=True):
         """
         Args:
             image_folder (string): the location of the image folder
@@ -97,6 +97,7 @@ class LabeledDataset(torch.utils.data.Dataset):
         self.scene_index = scene_index
         self.transform = transform
         self.extra_info = extra_info
+        self.roadmap_transform= roadmap_transform
     
     def __len__(self):
         return self.scene_index.size * NUM_SAMPLE_PER_SCENE
@@ -119,9 +120,8 @@ class LabeledDataset(torch.utils.data.Dataset):
         
         ego_path = os.path.join(sample_path, 'ego.png')
         ego_image = Image.open(ego_path)
-        ego_image = torchvision.transforms.functional.to_tensor(ego_image)
+        ego_image = self.roadmap_transform(ego_image)
         road_image = convert_map_to_road_map(ego_image)
-        
         target = {}
         target['bounding_box'] = torch.as_tensor(corners).view(-1, 2, 4)
         target['category'] = torch.as_tensor(categories)
