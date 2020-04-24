@@ -2,13 +2,7 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
 
-model_urls = {
-    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
-    'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
-    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
-    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
-}
+from efficientnet_pytorch import EfficientNet
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -56,24 +50,25 @@ class Bottleneck(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
-
-    def __init__(self, block, layers, num_classes=2):
+class AutoNet(nn.Module):
+    def __init__(self, num_classes=2):
         self.inplanes = 64
         self.num_classes = num_classes
-        super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avg = self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc1 = nn.Linear(512 * block.expansion * 8 * 10, 500)
-        self.fc2 = nn.Linear(3000, 25*25*16)
+        super(AutoNet, self).__init__()
+        self.efficientNet=EfficientNet.from_name('efficientnet-b4')
+        feature = self.efficientNet._fc.in_features
+        self.efficientNet._fc = nn.Sequential(
+            nn.Linear(in_features=feature, out_features=300, bias=False),
+            nn.BatchNorm1d(300),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.4)
+        )
+        self.fc2 = nn.Sequential(
+            nn.Linear(1800, 25 * 25 * 16, bias=False),
+            nn.BatchNorm1d(25 * 25 * 16),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.4)
+        )
         self.deconv0 = self._make_deconv_layer(4)
         self.deconv1 = self._make_deconv_layer(2)
         self.deconv2 = self._make_deconv_layer(1, last=True)
@@ -120,20 +115,8 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         batch_size=x.size(0)
-        x = x.view(x.size(0)*6,-1,256,320)
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-
-        #x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc1(x)
+        x = x.view(x.size(0)*6,-1,128,160)
+        x = self.efficientNet(x)
         x = x.view(batch_size, -1)
         x = self.fc2(x)
         x = x.view(x.size(0),-1,25,25)
@@ -144,4 +127,4 @@ class ResNet(nn.Module):
 
 
 def trainModel():
-    return MobileNetV3()
+    return AutoNet()

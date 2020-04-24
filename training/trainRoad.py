@@ -3,7 +3,7 @@ import random
 
 import numpy as np
 import pandas as pd
-
+import time
 import torchcontrib
 
 import torch
@@ -35,7 +35,7 @@ unlabeled_scene_index = np.arange(106)
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
 
-def train(model, device, train_loader, optimizer, epoch, log_interval = 100):
+def train(model, device, train_loader, optimizer, epoch, log_interval = 50):
     # Set model to training mode
     model.train()
     # Loop through data points
@@ -89,7 +89,7 @@ if __name__ == '__main__':
     data_transforms = transforms.Compose([
         #transforms.RandomHorizontalFlip(),
         transforms.Pad((7,0)),
-        transforms.Resize((128, 160), 0),
+        transforms.Resize((128,160), 0),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])   #for ImageNet
     ])
@@ -107,33 +107,33 @@ if __name__ == '__main__':
                                       )
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.85 * len(labeled_trainset)),
                                                                          len(labeled_trainset)-int(0.85 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=4,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=4,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn)
 
     #sample, target, road_image, extra = iter(trainloader).next()
     #print(torch.stack(sample).shape)
     model=trainModel()
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.5)
-    optimizer = torchcontrib.optim.SWA(optimizer,swa_freq=5,swa_start=150,swa_lr=0.0005)
+    optimizer = optim.Adam(model.parameters(), lr=1e-2)
+    scheduler = lr_scheduler.StepLR(optimizer,step_size=60,gamma=0.5)
+    optimizer = torchcontrib.optim.SWA(optimizer,swa_freq=5,swa_start=300,swa_lr=0.0025)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss=1
-    for epoch in range(1, 200 + 1):
+    for epoch in range(1, 400 + 1):
         # Train model
+        start_time=time.time()
         train(model, device, trainloader, optimizer, epoch)
         test_loss=test(model,device,testloader)
         if(last_test_loss>test_loss):
             torch.save(model.state_dict(), 'parameter.pkl')
             last_test_loss=test_loss
-        if epoch >= 150:
-            if epoch %5 == 0:
-                optimizer.update_swa()
-        else:
+        if epoch <= 300:
             scheduler.step(epoch)
             print("lr_scheduler="+str(scheduler.get_lr())+'\n')
+        end_time=time.time()
+        print("total_time="+str(end_time-start_time)+'\n')
     optimizer.swap_swa_sgd()
     test_loss =test(model,device,testloader)
     if (last_test_loss > test_loss):
