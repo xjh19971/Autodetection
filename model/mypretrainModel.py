@@ -50,11 +50,11 @@ class Bottleneck(nn.Module):
         return out
 
 
-class AutoNet(nn.Module):
-    def __init__(self, num_classes=2):
+class AutoPretrainNet(nn.Module):
+    def __init__(self, num_classes=3):
         self.inplanes = 64
         self.num_classes = num_classes
-        super(AutoNet, self).__init__()
+        super(AutoPretrainNet, self).__init__()
         self.efficientNet=EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
@@ -64,15 +64,16 @@ class AutoNet(nn.Module):
             nn.Dropout(p=0.4)
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(1800, 25 * 25 * 16, bias=False),
-            nn.BatchNorm1d(25 * 25 * 16),
+            nn.Linear(1800, 4 * 5 * 48 * 6, bias=False),
+            nn.BatchNorm1d(4 * 5 * 48 * 6),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.4)
         )
-        self.deconv0 = self._make_deconv_layer(4)
-        self.deconv1 = self._make_deconv_layer(2)
-        self.deconv2 = self._make_deconv_layer(1, last=True)
-
+        self.deconv0 = self._make_deconv_layer(8)
+        self.deconv1 = self._make_deconv_layer(4)
+        self.deconv2 = self._make_deconv_layer(2)
+        self.deconv3 = self._make_deconv_layer(1,last=True)
+        self.upSample = nn.Upsample(scale_factor=2)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -109,8 +110,8 @@ class AutoNet(nn.Module):
             layers.append(nn.ReLU(inplace=True))
         else:
             layers.append(
-                nn.ConvTranspose2d(self.num_classes * ratio * 2, self.num_classes * ratio, 3, stride=2, padding=1,
-                                   output_padding=1))
+                nn.ConvTranspose2d(self.num_classes * ratio * 2, self.num_classes * ratio, 3, stride=2,
+                                   padding=1, output_padding=1))
         return nn.Sequential(*layers)
 
     def forward(self, x):
@@ -119,12 +120,15 @@ class AutoNet(nn.Module):
         x = self.efficientNet(x)
         x = x.view(batch_size, -1)
         x = self.fc2(x)
-        x = x.view(x.size(0),-1,25,25) #x = x.view(x.size(0)*6,-1,128,160)
+        x = x.view(x.size(0)*6,-1,4,5) #x = x.view(x.size(0)*6,-1,128,160)
         x = self.deconv0(x)#detection
         x = self.deconv1(x)
         x = self.deconv2(x)#resize conv conv resize conv conv
-        return nn.LogSoftmax(dim=1)(x)
+        x = self.deconv3(x)  # resize conv conv resize conv conv
+        x = self.upSample(x)
+        x = x.view(batch_size,-1,128,160)
+        return x
 
 
 def trainModel():
-    return AutoNet()
+    return AutoPretrainNet()
