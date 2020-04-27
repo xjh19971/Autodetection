@@ -77,7 +77,7 @@ class YOLO_Kmeans:
         max_y = np.max(np.array([f['fl_y'], f['fr_y'], f['bl_y'], f['br_y']]), axis=0)
         width=max_x-min_x
         height=max_y-min_y
-        dataSet=np.stack([width,height],axis=0).T
+        dataSet=np.stack([width*10,height*10],axis=0).T
         '''
         for line in f:
             infos = line.split(" ")
@@ -103,7 +103,7 @@ class YOLO_Kmeans:
 
 
 if __name__ == "__main__":
-    cluster_number = 12
+    cluster_number = 6
     filename = "./dataset/data/annotation.csv"
     kmeans = YOLO_Kmeans(cluster_number, filename)
     kmeans.txt2clusters()

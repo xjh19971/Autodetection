@@ -1,5 +1,5 @@
 import numpy as np
-
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -25,13 +25,26 @@ def collate_fn(batch):
     bbox_list=[]
     category_list=[]
     for i in range(len(batch)):
-        bbox_list.append(batch[i][1]['bounding_box'])
+        min_x = torch.min(batch[i][1]['bounding_box'][:,0,:], dim=1)[0]
+        min_y = torch.min(batch[i][1]['bounding_box'][:,1,:], dim=1)[0]
+        max_x = torch.max(batch[i][1]['bounding_box'][:,0,:], dim=1)[0]
+        max_y = torch.max(batch[i][1]['bounding_box'][:,1,:], dim=1)[0]
+        width=torch.sub(max_x,min_x)
+        height=torch.sub(max_y,min_y)
+        bbox_list.append(torch.floor(torch.stack([min_x*10+400,min_y*10+400,width*10,height*10],dim=1)))
         category_list.append(batch[i][1]['category'])
     concated_roadmap=[]
     for i in range(len(batch)):
         concated_roadmap.append(batch[i][2].unsqueeze(0))
     concated_roadmap=torch.cat(concated_roadmap,0).long()
     return [concated_input,bbox_list,category_list,concated_roadmap]
+
+def collate_fn_unlabeled(batch):
+    concated_input=[]
+    for i in range(len(batch)):
+        concated_input.append(torch.reshape(batch[i],(1,18,128,160)))
+    concated_input=torch.cat(concated_input,0)
+    return [concated_input,concated_input]
 
 def draw_box(ax, corners, color):
     point_squence = torch.stack([corners[:, 0], corners[:, 1], corners[:, 3], corners[:, 2], corners[:, 0]])

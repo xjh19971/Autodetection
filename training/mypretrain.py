@@ -14,7 +14,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 
 from dataset.dataHelper import UnlabeledDataset
-from util.helper import collate_fn_unlabeled, draw_box
+from utils.helper import collate_fn_unlabeled, draw_box
 
 from model.mypretrainModel import trainModel
 from tensorboardX import SummaryWriter
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     #print(torch.stack(sample).shape)
     model=trainModel()
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-2)
+    optimizer = optim.Adam(model.parameters(), lr=1e-2,weight_decay=0.01)
     scheduler = lr_scheduler.StepLR(optimizer,step_size=25,gamma=0.5)
     optimizer = torchcontrib.optim.SWA(optimizer,swa_freq=5,swa_start=100,swa_lr=0.005)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
@@ -132,6 +132,6 @@ if __name__ == '__main__':
     optimizer.bn_update(trainloader, model)
     test_loss =test(model,device,testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'parameter.pkl')
+        torch.save(model.state_dict(), 'pretrain.pkl')
         last_test_loss = test_loss
 

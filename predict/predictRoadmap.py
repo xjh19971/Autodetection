@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 
 from dataset.dataHelper import LabeledDataset
-from util.helper import collate_fn, draw_box
+from utils.helper import collate_fn, draw_box
 from model.roadModel import trainModel
 from tensorboardX import SummaryWriter
 
@@ -33,7 +33,7 @@ annotation_csv = 'dataset/data/annotation.csv'
 unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
-labeled_scene_index = np.arange(106, 134)
+labeled_scene_index = np.arange(120, 134)
 
 def compute_ts_road_map(road_map1, road_map2):
     tp = (road_map1 * road_map2).sum()
@@ -103,6 +103,6 @@ if __name__ == '__main__':
     # Train model
     start_time = time.time()
     model=trainModel()
-    model.load_state_dict(torch.load('parameter.pkl'))
+    model.load_state_dict(torch.load('best.pkl'))
     model.to(device)
     test(model,device,testloader)
