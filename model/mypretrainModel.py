@@ -52,27 +52,26 @@ class Bottleneck(nn.Module):
 
 class AutoPretrainNet(nn.Module):
     def __init__(self, num_classes=3):
-        self.inplanes = 64
+        self.latent = 1000
         self.num_classes = num_classes
         super(AutoPretrainNet, self).__init__()
-        self.efficientNet=EfficientNet.from_name('efficientnet-b4')
+        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=300, bias=False),
-            nn.BatchNorm1d(300),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.4)
+            nn.Linear(in_features=feature, out_features=2*self.latent),
+            # nn.Dropout(p=0.4)
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(1800, 4 * 5 * 48 * 6, bias=False),
-            nn.BatchNorm1d(4 * 5 * 48 * 6),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.4)
+            nn.Linear(1000, 4 * 5 * 128),
+            #nn.BatchNorm1d(4 * 5 * 128),
+            #nn.ReLU(inplace=True),
+            # nn.Dropout(p=0.4)
         )
-        self.deconv0 = self._make_deconv_layer(8)
-        self.deconv1 = self._make_deconv_layer(4)
-        self.deconv2 = self._make_deconv_layer(2)
-        self.deconv3 = self._make_deconv_layer(1,last=True)
+        self.inplanes=64
+        self.deconv0 = self._make_deconv_layer(128, 64)
+        self.deconv1 = self._make_deconv_layer(64, 32)
+        self.deconv2 = self._make_deconv_layer(32, 16)
+        self.deconv3 = self._make_deconv_layer(16, 3, last=True)
         self.upSample = nn.Upsample(scale_factor=2)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -100,34 +99,51 @@ class AutoPretrainNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def _make_deconv_layer(self, ratio, last=False):
+    def _make_deconv_layer(self, inplanes, outplanes, last=False, num_anchors=None):
         layers = []
         if last is not True:
             layers.append(
-                nn.ConvTranspose2d(self.num_classes * ratio * 2 , self.num_classes * ratio , 3, stride=2,
+                nn.ConvTranspose2d(inplanes, outplanes, 3, stride=2,
                                    padding=1, output_padding=1, bias=False))
-            layers.append(nn.BatchNorm2d(self.num_classes * ratio))
+            layers.append(nn.BatchNorm2d(outplanes))
             layers.append(nn.ReLU(inplace=True))
         else:
-            layers.append(
-                nn.ConvTranspose2d(self.num_classes * ratio * 2, self.num_classes * ratio, 3, stride=2,
-                                   padding=1, output_padding=1))
+            if num_anchors is None:
+                layers.append(
+                    nn.ConvTranspose2d(inplanes, outplanes, 3, stride=2, padding=1,
+                                       output_padding=1))
+            else:
+                layers.append(
+                    nn.ConvTranspose2d(inplanes, outplanes * num_anchors, 3, stride=2, padding=1,
+                                       output_padding=1))
         return nn.Sequential(*layers)
 
+    def reparameterise(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = std.data.new(std.size()).normal_()
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
     def forward(self, x):
-        batch_size=x.size(0)
-        x = x.view(x.size(0)*6,-1,128,160)
+        batch_size = x.size(0)
+        x = x.view(x.size(0) * 6, -1, 128, 160)
         x = self.efficientNet(x)
-        x = x.view(batch_size, -1)
+        x = x.view(x.size(0), 2, -1)
+        mu = x[:, 0, :]
+        logvar = x[:, 1, :]
+        x = self.reparameterise(mu, logvar)
+        #x = x.view(batch_size, -1)
         x = self.fc2(x)
-        x = x.view(x.size(0)*6,-1,4,5) #x = x.view(x.size(0)*6,-1,128,160)
-        x = self.deconv0(x)#detection
+        x = x.reshape(x.size(0), -1, 4, 5)  # x = x.view(x.size(0)*6,-1,128,160)
+        x = self.deconv0(x)  # detection
         x = self.deconv1(x)
-        x = self.deconv2(x)#resize conv conv resize conv conv
-        x = self.deconv3(x)  # resize conv conv resize conv conv
+        x = self.deconv2(x)
+        x = self.deconv3(x)
         x = self.upSample(x)
-        x = x.view(batch_size,-1,128,160)
-        return x
+        x = x.view(batch_size, -1, 128, 160)
+        return x, mu, logvar
 
 
 def trainModel():

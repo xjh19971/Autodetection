@@ -4,6 +4,44 @@ from model.MobileNet import MobileNetV3
 from model.EfficientNetBackbone import EfficientNet
 from model.detectionModel import YOLOLayer
 
+class Bottleneck(nn.Module):
+    expansion = 4
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super(Bottleneck, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
 class AutoNet(nn.Module):
     def __init__(self, anchors,detection_classes,num_classes=2):
         self.inplanes = 64
@@ -19,26 +57,31 @@ class AutoNet(nn.Module):
             nn.Dropout(p=0.4)
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(1800, 25 * 25 * 8 * num_classes, bias=False),
-            nn.BatchNorm1d(25 * 25 * 8 * num_classes),
+            nn.Linear(1800, 25 * 25 * 16, bias=False),
+            nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.4)
         )
         self.fc2_1 = nn.Sequential(
-            nn.Linear(1800, 25 * 25 * 8 * detection_classes, bias=False),
-            nn.BatchNorm1d(25 * 25 * 8 * detection_classes),
+            nn.Linear(1800, 25 * 25 * 48, bias=False),
+            nn.BatchNorm1d(25 * 25 * 48),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.4)
         )
-        self.deconv0 = self._make_deconv_layer(4,self.num_classes)
-        self.deconv1 = self._make_deconv_layer(2,self.num_classes)
-        self.deconv2 = self._make_deconv_layer(1,self.num_classes, last=True)
-        self.conv0_1 = self._make_layer()
-        self.conv0_2 = self._make_layer()
-        self.deconv0_1 = self._make_deconv_layer(4,self.detection_classes)
-        self.conv1_1 = self._make_layer()
-        self.conv1_2 = self._make_layer()
-        self.deconv1_1 = self._make_deconv_layer(2,self.detection_classes, last=True,num_anchors=len(anchors))
+        self.deconv0 = self._make_deconv_layer(16,8)
+        self.deconv1 = self._make_deconv_layer(8,4)
+        self.deconv2 = self._make_deconv_layer(4,2, last=True)
+        self.conv0_0 = nn.Sequential(
+            nn.Conv2d(48, 256, kernel_size=1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True)
+        )
+        self.inplanes=256
+        self.conv0_1 = self._make_layer(Bottleneck,64,2)
+        self.deconv0_1 = self._make_deconv_layer(256,128)
+        self.inplanes=128
+        self.conv1_1 = self._make_layer(Bottleneck,32,2)
+        self.deconv1_1 = self._make_deconv_layer(128,self.detection_classes+5, last=True,num_anchors=len(anchors))
         self.yolo1=YOLOLayer(anchors, self.detection_classes, 800)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -51,13 +94,6 @@ class AutoNet(nn.Module):
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=3, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion),
-            )
-
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
@@ -66,22 +102,22 @@ class AutoNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def _make_deconv_layer(self, ratio,num_classes, last=False, num_anchors=None):
+    def _make_deconv_layer(self, inplanes, outplanes, last=False, num_anchors=None):
         layers = []
         if last is not True:
             layers.append(
-                nn.ConvTranspose2d(num_classes * ratio * 2 , num_classes * ratio , 3, stride=2,
+                nn.ConvTranspose2d(inplanes, outplanes, 3, stride=2,
                                    padding=1, output_padding=1, bias=False))
-            layers.append(nn.BatchNorm2d(num_classes * ratio))
+            layers.append(nn.BatchNorm2d(outplanes))
             layers.append(nn.ReLU(inplace=True))
         else:
             if num_anchors is None:
                 layers.append(
-                    nn.ConvTranspose2d(num_classes * ratio * 2, num_classes * ratio, 3, stride=2, padding=1,
-                                   output_padding=1))
+                    nn.ConvTranspose2d(inplanes, outplanes, 3, stride=2, padding=1,
+                                       output_padding=1))
             else:
                 layers.append(
-                    nn.ConvTranspose2d(num_classes * ratio * 2, (5+num_classes) * num_anchors, 3, stride=2, padding=1,
+                    nn.ConvTranspose2d(inplanes, outplanes * num_anchors, 3, stride=2, padding=1,
                                        output_padding=1))
         return nn.Sequential(*layers)
 
@@ -92,13 +128,16 @@ class AutoNet(nn.Module):
         x = x.view(batch_size, -1)
         branch = x
         x = self.fc2(x)
-        x1 = self.fc2_1(branch)
         x = x.view(x.size(0),-1,25,25) #x = x.view(x.size(0)*6,-1,128,160)
         x = self.deconv0(x)#detection
         x = self.deconv1(x)
         x = self.deconv2(x)#resize conv conv resize conv conv
+        x1 = self.fc2_1(branch)
         x1 = x1.view(x1.size(0),-1,25,25)
+        x1 = self.conv0_0(x1)
+        x1 = self.conv0_1(x1)
         x1 = self.deconv0_1(x1)#detection
+        x1 = self.conv1_1(x1)
         x1 = self.deconv1_1(x1)
         output, total_loss = self.yolo1(x1, detection_target,800)
         return [nn.LogSoftmax(dim=1)(x),output,total_loss]

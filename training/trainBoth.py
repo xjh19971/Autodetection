@@ -15,7 +15,7 @@ from torch.optim import lr_scheduler
 
 from dataset.dataHelper import LabeledDataset
 from utils.helper import collate_fn, draw_box
-from model.bothModel import trainModel
+from model.bothModelwithoutSTN import trainModel
 from tensorboardX import SummaryWriter
 writer = SummaryWriter('log') #建立一个保存数据用的东西
 
@@ -131,11 +131,11 @@ if __name__ == '__main__':
     #print(torch.stack(sample).shape)
     model=trainModel(anchors)
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-2,weight_decay=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=1e-2,weight_decay=5e-4)
     scheduler = lr_scheduler.StepLR(optimizer,step_size=40,gamma=0.5)
     optimizer = torchcontrib.optim.SWA(optimizer,swa_freq=5,swa_start=200,swa_lr=0.0025)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
-    last_test_loss=1
+    last_test_loss=2
     for epoch in range(1, 300 + 1):
         # Train model
         start_time=time.time()
@@ -144,7 +144,7 @@ if __name__ == '__main__':
         if(last_test_loss>test_loss):
             torch.save(model.state_dict(), 'parameter.pkl')
             last_test_loss=test_loss
-        if epoch <= 300:
+        if epoch <= 200:
             scheduler.step(epoch)
             print("lr_scheduler="+str(scheduler.get_lr())+'\n')
         end_time=time.time()

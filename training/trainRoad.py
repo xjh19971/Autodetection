@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import time
 import torchcontrib
-
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -34,6 +34,22 @@ unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
+start_epoch = 150
+long_cycle = 30
+short_cycle = 5
+start_lr=0.004
+def lambdaScheduler(epoch):
+    if epoch == 0:
+        return 1
+    elif epoch < start_epoch:
+        return 0.5 ** (math.floor(epoch / long_cycle))
+    else:
+        if epoch % short_cycle == 0:
+            return 0.5 ** math.floor(start_epoch / long_cycle / 2 + 1)
+        else:
+            return 0.5 ** math.floor(start_epoch / long_cycle / 2 + 1) - \
+                   (0.5 ** math.floor(start_epoch / long_cycle / 2 + 1) - 0.5 ** math.floor(start_epoch / long_cycle)) \
+                   * (epoch % short_cycle) / short_cycle
 
 def train(model, device, train_loader, optimizer, epoch, log_interval = 50):
     # Set model to training mode
@@ -116,28 +132,32 @@ if __name__ == '__main__':
     #print(torch.stack(sample).shape)
     model=trainModel()
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-2)
-    scheduler = lr_scheduler.StepLR(optimizer,step_size=60,gamma=0.5)
-    optimizer = torchcontrib.optim.SWA(optimizer,swa_freq=5,swa_start=300,swa_lr=0.0025)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
+    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
+    optimizer = torchcontrib.optim.SWA(optimizer)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
-    last_test_loss=1
-    for epoch in range(1, 400 + 1):
+    last_test_loss = 1
+    for epoch in range(1, 200 + 1):
         # Train model
-        start_time=time.time()
+        start_time = time.time()
         train(model, device, trainloader, optimizer, epoch)
-        test_loss=test(model,device,testloader)
-        if(last_test_loss>test_loss):
-            torch.save(model.state_dict(), 'parameter.pkl')
-            last_test_loss=test_loss
-        if epoch <= 300:
-            scheduler.step(epoch)
-            print("lr_scheduler="+str(scheduler.get_lr())+'\n')
-        end_time=time.time()
-        print("total_time="+str(end_time-start_time)+'\n')
+        test_loss = test(model, device, testloader)
+        scheduler.step(epoch)
+        if last_test_loss > test_loss:
+            torch.save(model.state_dict(), 'roadModel.pkl')
+            last_test_loss = test_loss
+        if epoch >= 150 and (epoch + 1) % short_cycle == 0:
+            optimizer.update_swa()
+        print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
+        end_time = time.time()
+        print("total_time=" + str(end_time - start_time) + '\n')
     optimizer.swap_swa_sgd()
+    model = model.cpu()
     optimizer.bn_update(trainloader, model)
-    test_loss =test(model,device,testloader)
+    model.to(device)
+    test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'parameter.pkl')
+        torch.save(model.state_dict(), 'roadModel.pkl')
         last_test_loss = test_loss
+
 
