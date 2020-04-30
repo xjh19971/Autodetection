@@ -55,7 +55,7 @@ def lambdaScheduler(epoch):
 
 
 def cal_loss(output, target, mu, logvar):
-    return nn.MSELoss(reduction='mean')(output, target) + 0.5 * torch.mean(logvar.exp() - logvar - 1 + mu.pow(2))
+    return nn.BCELoss(reduction='mean')(output, target) + 0.5 * torch.mean(logvar.exp() - logvar - 1 + mu.pow(2))
 
 
 def train(model, device, train_loader, optimizer, epoch, log_interval=50):
@@ -115,8 +115,7 @@ if __name__ == '__main__':
         # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160), 0),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # for ImageNet
+        transforms.ToTensor()
     ])
     unlabeled_trainset = UnlabeledDataset(image_folder=image_folder,
                                           scene_index=unlabeled_scene_index,
