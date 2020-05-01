@@ -144,8 +144,11 @@ class AutoPretrainNet(nn.Module):
         x = self.fc2(x)
         x = x.reshape(x.size(0), -1, 4, 5)  # x = x.view(x.size(0)*6,-1,128,160)
         x = self.deconv0(x)  # detection
+        x = self.conv0(x)
         x = self.deconv1(x)
+        x = self.conv1(x)
         x = self.deconv2(x)
+        x = self.conv2(x)
         x = self.deconv3(x)
         x = self.upSample(x)
         x = x.view(batch_size, -1, 128, 160)
