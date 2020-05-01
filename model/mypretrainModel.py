@@ -62,16 +62,21 @@ class AutoPretrainNet(nn.Module):
             # nn.Dropout(p=0.4)
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(1000, 4 * 5 * 128),
+            nn.Linear(1000, 4 * 5 * 256),
             #nn.BatchNorm1d(4 * 5 * 128),
             #nn.ReLU(inplace=True),
             # nn.Dropout(p=0.4)
         )
+        self.deconv0 = self._make_deconv_layer(256, 128)
+        self.inplanes=128
+        self.conv0=self._make_layer(Bottleneck,128,2)
+        self.deconv1 = self._make_deconv_layer(128, 64)
         self.inplanes=64
-        self.deconv0 = self._make_deconv_layer(128, 64)
-        self.deconv1 = self._make_deconv_layer(64, 32)
-        self.deconv2 = self._make_deconv_layer(32, 16)
-        self.deconv3 = self._make_deconv_layer(16, 3, last=True)
+        self.conv1 = self._make_layer(Bottleneck, 64, 2)
+        self.deconv2 = self._make_deconv_layer(64, 32)
+        self.inplanes=32
+        self.conv2 = self._make_layer(Bottleneck, 32, 2)
+        self.deconv3 = self._make_deconv_layer(32, 3, last=True)
         self.upSample = nn.Upsample(scale_factor=2)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
