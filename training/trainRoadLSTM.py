@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
     #sample, target, road_image, extra = iter(trainloader).next()
     #print(torch.stack(sample).shape)
-    model=trainModel()
+    model=trainModel(device)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)

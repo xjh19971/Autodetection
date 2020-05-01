@@ -13,12 +13,13 @@ def conv3x3(in_planes, out_planes, stride=1):
 
 
 class AutoNet(nn.Module):
-    def __init__(self, scene_batch_size, batch_size, step_size, num_classes=2):
+    def __init__(self, scene_batch_size, batch_size, step_size,device, num_classes=2):
         self.latent = 1000
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
         self.num_classes = num_classes
+        self.device=device
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
@@ -93,9 +94,9 @@ class AutoNet(nn.Module):
         for i in range(scene):
             output_scene = []
             x_scene = x[i, :, :, :, :]
-            h0 = torch.zeros((2, 6, 300)).cuda()
-            c0 = torch.zeros((2, 6, 300)).cuda()
-            x_lstm = torch.zeros((6, self.step_size, 1000)).cuda()
+            h0 = torch.zeros((2, 6, 300)).to(self.device)
+            c0 = torch.zeros((2, 6, 300)).to(self.device)
+            x_lstm = torch.zeros((6, self.step_size, 1000)).to(self.device)
             for j in range(0, self.scene_batch_size, self.batch_size):
                 batch_x = x_scene[j:j + self.batch_size, :, :, :]
                 batch_x = batch_x.view([batch_x.size(0) * 6, -1, 128, 160])
@@ -127,5 +128,5 @@ class AutoNet(nn.Module):
         return output
 
 
-def trainModel(scene_batch_size=4, batch_size=4, step_size=4):
-    return AutoNet(scene_batch_size, batch_size, step_size)
+def trainModel(device,scene_batch_size=4, batch_size=4, step_size=4):
+    return AutoNet(scene_batch_size, batch_size, step_size,device)
