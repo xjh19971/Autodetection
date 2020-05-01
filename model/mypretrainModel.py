@@ -11,19 +11,16 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
-class Bottleneck(nn.Module):
-    expansion = 4
+class BasicBlock(nn.Module):
+    expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        super(BasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
 
@@ -36,10 +33,6 @@ class Bottleneck(nn.Module):
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
 
         if self.downsample is not None:
             residual = self.downsample(x)
@@ -69,13 +62,13 @@ class AutoPretrainNet(nn.Module):
         )
         self.deconv0 = self._make_deconv_layer(256, 128)
         self.inplanes=128
-        self.conv0=self._make_layer(Bottleneck,128,2)
+        self.conv0=self._make_layer(BasicBlock,128,2)
         self.deconv1 = self._make_deconv_layer(128, 64)
         self.inplanes=64
-        self.conv1 = self._make_layer(Bottleneck, 64, 2)
+        self.conv1 = self._make_layer(BasicBlock, 64, 2)
         self.deconv2 = self._make_deconv_layer(64, 32)
         self.inplanes=32
-        self.conv2 = self._make_layer(Bottleneck, 32, 2)
+        self.conv2 = self._make_layer(BasicBlock, 32, 2)
         self.deconv3 = self._make_deconv_layer(32, 3, last=True)
         self.upSample = nn.Upsample(scale_factor=2)
         for m in self.modules():
