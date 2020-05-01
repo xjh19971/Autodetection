@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 
+batch_size=4
 def convert_map_to_lane_map(ego_map, binary_lane):
     mask = (ego_map[0,:,:] == ego_map[1,:,:]) * (ego_map[1,:,:] == ego_map[2,:,:]) + (ego_map[0,:,:] == 250 / 255)
 
@@ -38,6 +39,33 @@ def collate_fn(batch):
         concated_roadmap.append(batch[i][2].unsqueeze(0))
     concated_roadmap=torch.cat(concated_roadmap,0).long()
     return [concated_input,bbox_list,category_list,concated_roadmap]
+
+def collate_fn_lstm(batch):
+    concated_input=[]
+    for i in range(len(batch)):
+        concated_input.append(batch[i][0].view(batch_size,18,128,160))
+    concated_input=torch.stack(concated_input)
+    batch_bbox_list=[]
+    batch_category_list=[]
+    for i in range(len(batch)):
+        bbox_list = []
+        category_list = []
+        for j in range(len(batch[i][1])):
+            min_x = torch.min(batch[i][1][j]['bounding_box'][:,0,:], dim=1)[0]
+            min_y = torch.min(batch[i][1][j]['bounding_box'][:,1,:], dim=1)[0]
+            max_x = torch.max(batch[i][1][j]['bounding_box'][:,0,:], dim=1)[0]
+            max_y = torch.max(batch[i][1][j]['bounding_box'][:,1,:], dim=1)[0]
+            width=torch.sub(max_x,min_x)
+            height=torch.sub(max_y,min_y)
+            bbox_list.append(torch.floor(torch.stack([min_x*10+400,min_y*10+400,width*10,height*10],dim=1)))
+            category_list.append(batch[i][1][j]['category'])
+        batch_bbox_list.append(bbox_list)
+        batch_category_list.append(category_list)
+    concated_roadmap=[]
+    for i in range(len(batch)):
+        concated_roadmap.append(batch[i][2].unsqueeze(1))
+    concated_roadmap=torch.stack(concated_roadmap).float()
+    return [concated_input,batch_bbox_list,batch_category_list,concated_roadmap]
 
 def collate_fn_unlabeled(batch):
     concated_input=[]
