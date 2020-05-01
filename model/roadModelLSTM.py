@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
+import torch
 
 from model.EfficientNetBackbone import EfficientNet
 
@@ -11,71 +12,30 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
-class Bottleneck(nn.Module):
-    expansion = 4
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
-        out = self.relu(out)
-
-        return out
-
-
 class AutoNet(nn.Module):
-    def __init__(self, num_classes=2):
+    def __init__(self, scene_batch_size, batch_size, step_size, num_classes=2):
         self.latent = 1000
+        self.batch_size = batch_size
+        self.step_size = step_size
+        self.scene_batch_size = scene_batch_size
         self.num_classes = num_classes
         super(AutoNet, self).__init__()
-        self.efficientNet=EfficientNet.from_name('efficientnet-b4')
+        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.fc1 = nn.Sequential(
-            nn.Linear(1000, 300, bias=False),
-            nn.BatchNorm1d(300),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.4)
-        )
+        self.rnn1 = nn.LSTM(1000, 300, 2, batch_first=True,dropout=0.3)
         self.fc2 = nn.Sequential(
             nn.Linear(1800, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4)
+            nn.Dropout(0.3),
         )
-        self.deconv0 = self._make_deconv_layer(16,8)
-        self.deconv1 = self._make_deconv_layer(8,4)
-        self.deconv2 = self._make_deconv_layer(4,1, last=True)
+        self.deconv0 = self._make_deconv_layer(16, 8)
+        self.deconv1 = self._make_deconv_layer(8, 4)
+        self.deconv2 = self._make_deconv_layer(4, 1, last=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -127,22 +87,45 @@ class AutoNet(nn.Module):
         return mu
 
     def forward(self, x):
-        batch_size=x.size(0)
-        x = x.view(x.size(0)*6,-1,128,160)
-        x = self.efficientNet(x)
-        x = x.view(x.size(0), 2, -1)
-        mu = x[:, 0, :]
-        logvar = x[:, 1, :]
-        x = self.reparameterise(mu, logvar)
-        x = self.fc1(x)
-        x = x.view(batch_size, -1)
-        x = self.fc2(x)
-        x = x.view(x.size(0),-1,25,25) #x = x.view(x.size(0)*6,-1,128,160)
-        x = self.deconv0(x)#detection
-        x = self.deconv1(x)
-        x = self.deconv2(x)#resize conv conv resize conv conv
-        return nn.LogSoftmax(dim=1)(x)
+        # (S,B,18,H,W)
+        output = []
+        scene = x.size(0)
+        for i in range(scene):
+            output_scene = []
+            x_scene = x[i, :, :, :, :]
+            h0 = torch.zeros((2, 6, 300)).cuda()
+            c0 = torch.zeros((2, 6, 300)).cuda()
+            x_lstm = torch.zeros((6, self.step_size, 1000)).cuda()
+            for j in range(0, self.scene_batch_size, self.batch_size):
+                batch_x = x_scene[j:j + self.batch_size, :, :, :]
+                batch_x = batch_x.view([batch_x.size(0) * 6, -1, 128, 160])
+                batch_x = self.efficientNet(batch_x)
+                batch_x = batch_x.view(batch_x.size(0), 2, -1)
+                mu = batch_x[:, 0, :]
+                logvar = batch_x[:, 1, :]
+                batch_x = self.reparameterise(mu, logvar)
+                batch_x = batch_x.view([self.batch_size, -1, 1000])
+                batch_x = batch_x.transpose(0, 1)
+                x_lstm_out_list = []
+                for k in range(batch_x.size(1)):
+                    x_lstm = x_lstm[:, 1:, :]
+                    x_lstm = torch.cat([x_lstm, batch_x[:, k, :].unsqueeze(1)], dim=1)
+                    x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
+                    x_lstm_out_list.append(x_lstm_out[:, self.step_size - 1, :])
+                ho, c0 = ht, ct
+                batch_x = torch.stack(x_lstm_out_list, dim=1).transpose(0, 1)
+                batch_x = batch_x.reshape(self.batch_size, -1)
+                batch_x = self.fc2(batch_x)
+                batch_x = batch_x.view(batch_x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+                batch_x = self.deconv0(batch_x)  # detection
+                batch_x = self.deconv1(batch_x)
+                batch_x = self.deconv2(batch_x)  # resize conv conv resize conv conv
+                output_scene.append(batch_x)
+            output_scene = torch.cat(output_scene)
+            output.append(output_scene)
+        output = torch.stack(output)
+        return output
 
 
-def trainModel():
-    return AutoNet()
+def trainModel(scene_batch_size=4, batch_size=4, step_size=4):
+    return AutoNet(scene_batch_size, batch_size, step_size)

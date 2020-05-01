@@ -17,7 +17,6 @@ from dataset.dataHelper import LabeledDataset
 from utils.helper import collate_fn, draw_box
 from model.roadModel import trainModel
 from tensorboardX import SummaryWriter
-writer = SummaryWriter('log') #建立一个保存数据用的东西
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
@@ -106,8 +105,7 @@ if __name__ == '__main__':
         #transforms.RandomHorizontalFlip(),
         transforms.Pad((7,0)),
         transforms.Resize((128,160), 0),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])   #for ImageNet
+        transforms.ToTensor()
     ])
     roadmap_transforms = transforms.Compose([
         #transforms.RandomHorizontalFlip(),
