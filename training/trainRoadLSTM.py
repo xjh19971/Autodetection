@@ -32,8 +32,8 @@ unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
-start_epoch = 150
-long_cycle = 30
+start_epoch = 300
+long_cycle = 60
 short_cycle = 5
 start_lr=0.004
 def lambdaScheduler(epoch):
@@ -118,11 +118,11 @@ if __name__ == '__main__':
                                       roadmap_transform=roadmap_transforms,
                                       extra_info=False
                                       )
-    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.85 * len(labeled_trainset)),
-                                                                         len(labeled_trainset)-int(0.85 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=2,
+    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
+                                                                         len(labeled_trainset)-int(0.90 * len(labeled_trainset))])
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=3, shuffle=True, num_workers=3,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=2,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=3, shuffle=True, num_workers=3,
                                               collate_fn=collate_fn_lstm)
 
     #sample, target, road_image, extra = iter(trainloader).next()
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     optimizer = torchcontrib.optim.SWA(optimizer)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
-    for epoch in range(1, 200 + 1):
+    for epoch in range(1, 400 + 1):
         # Train model
         start_time = time.time()
         train(model, device, trainloader, optimizer, epoch)
@@ -143,7 +143,7 @@ if __name__ == '__main__':
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'roadModel.pkl')
             last_test_loss = test_loss
-        if epoch >= 150 and (epoch + 1) % short_cycle == 0:
+        if epoch >= 300 and (epoch + 1) % short_cycle == 0:
             optimizer.update_swa()
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         end_time = time.time()
