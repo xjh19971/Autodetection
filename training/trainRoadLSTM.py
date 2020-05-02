@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
     # sample, target, road_image, extra = iter(trainloader).next()
     # print(torch.stack(sample).shape)
-    model = roadModel.trainModel()
+    model = roadModel.trainModel(device)
     if pretrain_file is not None:
         pretrain_dict = torch.load(pretrain_file, map_location='cuda:0')
         model_dict = model.state_dict()
