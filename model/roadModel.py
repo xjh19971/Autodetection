@@ -4,71 +4,34 @@ from model.MobileNet import MobileNetV3
 import numpy as np
 from model.EfficientNetBackbone import EfficientNet
 
-class Bottleneck(nn.Module):
-    expansion = 4
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
-        out = self.relu(out)
-
-        return out
-
 
 class AutoNet(nn.Module):
     def __init__(self, num_classes=2):
         self.latent = 1000
+        self.fc_num = 300
         self.num_classes = num_classes
         super(AutoNet, self).__init__()
-        self.efficientNet=EfficientNet.from_name('efficientnet-b4')
+        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
         self.fc1 = nn.Sequential(
-            nn.Linear(1000, 300, bias=False),
-            nn.BatchNorm1d(300),
+            nn.Linear(self.latent, self.fc_num, bias=False),
+            nn.BatchNorm1d(self.fc_num),
             nn.ReLU(inplace=True),
-            #nn.Dropout(0.4)
+            nn.Dropout(0.2)
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(1800, 25 * 25 * 16, bias=False),
+            nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            #nn.Dropout(0.4)
+            nn.Dropout(0.2)
         )
-        self.deconv0 = self._make_deconv_layer(16,8)
-        self.deconv1 = self._make_deconv_layer(8,4)
-        self.deconv2 = self._make_deconv_layer(4,1, last=True)
+        self.deconv0 = self._make_deconv_layer(16, 8)
+        self.deconv1 = self._make_deconv_layer(8, 4)
+        self.deconv2 = self._make_deconv_layer(4, 1, last=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -119,8 +82,8 @@ class AutoNet(nn.Module):
         return mu
 
     def forward(self, x):
-        batch_size=x.size(0)
-        x = x.view(x.size(0)*6,-1,128,160)
+        batch_size = x.size(0)
+        x = x.view(x.size(0) * 6, -1, 128, 160)
         x = self.efficientNet(x)
         x = x.view(x.size(0), 2, -1)
         mu = x[:, 0, :]
@@ -129,10 +92,10 @@ class AutoNet(nn.Module):
         x = self.fc1(x)
         x = x.view(batch_size, -1)
         x = self.fc2(x)
-        x = x.view(x.size(0),-1,25,25) #x = x.view(x.size(0)*6,-1,128,160)
-        x = self.deconv0(x)#detection
+        x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+        x = self.deconv0(x)  # detection
         x = self.deconv1(x)
-        x = self.deconv2(x)#resize conv conv resize conv conv
+        x = self.deconv2(x)  # resize conv conv resize conv conv
         return nn.Sigmoid()(x)
 
 

@@ -16,7 +16,6 @@ from torch.optim import lr_scheduler
 from dataset.dataHelper import LabeledDataset
 from utils.helper import collate_fn, draw_box
 from model.roadModel import trainModel
-from tensorboardX import SummaryWriter
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
@@ -36,7 +35,9 @@ labeled_scene_index = np.arange(106, 134)
 start_epoch = 150
 long_cycle = 30
 short_cycle = 5
-start_lr=0.004
+start_lr = 0.002
+
+
 def lambdaScheduler(epoch):
     if epoch == 0:
         return 1
@@ -50,20 +51,21 @@ def lambdaScheduler(epoch):
                    (0.5 ** math.floor(start_epoch / long_cycle / 2 + 1) - 0.5 ** math.floor(start_epoch / long_cycle)) \
                    * (epoch % short_cycle) / short_cycle
 
-def train(model, device, train_loader, optimizer, epoch, log_interval = 50):
+
+def train(model, device, train_loader, optimizer, epoch, log_interval=50):
     # Set model to training mode
     model.train()
     # Loop through data points
     for batch_idx, data in enumerate(train_loader):
         # Send data and target to device
-        sample,bbox_list,category_list,road_image=data
-        sample, road_image=sample.to(device),road_image.to(device)
+        sample, bbox_list, category_list, road_image = data
+        sample, road_image = sample.to(device), road_image.to(device)
         # Zero out the optimizer
         optimizer.zero_grad()
         # Pass data through model
-        output=model(sample)
+        output = model(sample)
         # Compute the negative log likelihood loss
-        loss=nn.NLLLoss()(output,road_image)
+        loss = nn.BCELoss()(output, road_image)
         # Backpropagate loss
         loss.backward()
         # Make a step with the optimizer
@@ -71,11 +73,12 @@ def train(model, device, train_loader, optimizer, epoch, log_interval = 50):
         # Print loss (uncomment lines below once implemented)
         if batch_idx % log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-            epoch, batch_idx * len(sample), len(train_loader.dataset),
-            100. * batch_idx / len(train_loader), loss.item()))
+                epoch, batch_idx * len(sample), len(train_loader.dataset),
+                       100. * batch_idx / len(train_loader), loss.item()))
     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
         epoch, len(train_loader.dataset), len(train_loader.dataset),
-               100. * batch_idx / len(train_loader), loss.item()))
+        100. * batch_idx / len(train_loader), loss.item()))
+
 
 def test(model, device, test_loader):
     # Set model to evaluation mode
@@ -83,33 +86,34 @@ def test(model, device, test_loader):
     # Variable for the total loss
     test_loss = 0
     with torch.no_grad():
-    # Loop through data points
-        batch_num=0
+        # Loop through data points
+        batch_num = 0
         for batch_idx, data in enumerate(test_loader):
             # Send data to device
             sample, bbox_list, category_list, road_image = data
             sample, road_image = sample.to(device), road_image.to(device)
             # Pass data through model
-            output=model(sample)
-            test_loss+=nn.NLLLoss()(output,road_image)
-            batch_num+=1;
+            output = model(sample)
+            test_loss += nn.BCELoss()(output, road_image)
+            batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
-        avg_test_loss = test_loss/batch_num
+        avg_test_loss = test_loss / batch_num
         # Print loss (uncomment lines below once implemented)
         print('\nTest set: Average loss: {:.4f}\n'.format(avg_test_loss))
     return avg_test_loss
 
+
 if __name__ == '__main__':
     data_transforms = transforms.Compose([
-        #transforms.RandomHorizontalFlip(),
-        transforms.Pad((7,0)),
-        transforms.Resize((128,160), 0),
+        # transforms.RandomHorizontalFlip(),
+        transforms.Pad((7, 0)),
+        transforms.Resize((128, 160)),
         transforms.ToTensor()
     ])
     roadmap_transforms = transforms.Compose([
-        #transforms.RandomHorizontalFlip(),
-        transforms.Resize((200,200),0),
+        # transforms.RandomHorizontalFlip(),
+        transforms.Resize((200, 200)),
         transforms.ToTensor()
     ])
     labeled_trainset = LabeledDataset(image_folder=image_folder,
@@ -119,16 +123,17 @@ if __name__ == '__main__':
                                       roadmap_transform=roadmap_transforms,
                                       extra_info=True
                                       )
-    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.85 * len(labeled_trainset)),
-                                                                         len(labeled_trainset)-int(0.85 * len(labeled_trainset))])
+    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
+                                                                         len(labeled_trainset) - int(
+                                                                             0.90 * len(labeled_trainset))])
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn)
     testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
-                                              collate_fn=collate_fn)
+                                             collate_fn=collate_fn)
 
-    #sample, target, road_image, extra = iter(trainloader).next()
-    #print(torch.stack(sample).shape)
-    model=trainModel()
+    # sample, target, road_image, extra = iter(trainloader).next()
+    # print(torch.stack(sample).shape)
+    model = trainModel()
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
@@ -157,5 +162,3 @@ if __name__ == '__main__':
     if (last_test_loss > test_loss):
         torch.save(model.state_dict(), 'roadModel.pkl')
         last_test_loss = test_loss
-
-

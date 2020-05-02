@@ -12,6 +12,38 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super(BasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, num_classes=2):
         self.latent = 1000
@@ -28,15 +60,21 @@ class AutoNet(nn.Module):
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.rnn1 = nn.LSTM(1000, 300, 1, batch_first=True)
+        self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc2 = nn.Sequential(
-            nn.Linear(1800, 25 * 25 * 16, bias=False),
+            nn.Linear(self.fc_num*6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            # nn.Dropout(0.3),
+            nn.Dropout(0.2),
         )
+        self.inplanes = 16
+        self.conv0 = self._make_layer(BasicBlock, 16, 2)
         self.deconv0 = self._make_deconv_layer(16, 8)
+        self.inplanes = 8
+        self.conv1 = self._make_layer(BasicBlock, 8, 2)
         self.deconv1 = self._make_deconv_layer(8, 4)
+        self.inplanes = 4
+        self.conv2 = self._make_layer(BasicBlock, 4, 2)
         self.deconv2 = self._make_deconv_layer(4, 1, last=True)
 
         for m in self.modules():
@@ -50,6 +88,8 @@ class AutoNet(nn.Module):
             elif isinstance(m, nn.LSTM):
                 nn.init.xavier_normal_(m.all_weights[0][0])
                 nn.init.xavier_normal_(m.all_weights[0][1])
+                nn.init.xavier_normal_(m.all_weights[1][0])
+                nn.init.xavier_normal_(m.all_weights[1][1])
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -104,8 +144,8 @@ class AutoNet(nn.Module):
         x = x.transpose(1, 2).contiguous()
         x = x.view(-1, step, self.latent)
         x_lstm = []
-        h0 = torch.zeros((1, 6 * scene * step, self.fc_num)).to(self.device)
-        c0 = torch.zeros((1, 6 * scene * step, self.fc_num)).to(self.device)
+        h0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
+        c0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
         for k in range(step):
             x_pad = torch.zeros((6 * scene, x.size(1) - k - 1, self.latent)).to(self.device)
             x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
@@ -122,8 +162,11 @@ class AutoNet(nn.Module):
         x = x.view(scene * step, self.fc_num * 6)
         x = self.fc2(x)
         x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+        x = self.conv0(x)
         x = self.deconv0(x)  # detection
+        x = self.conv1(x)
         x = self.deconv1(x)
+        x = self.conv2(x)
         x = self.deconv2(x)  # resize conv conv resize conv conv
         output = x.view(scene, step, 1, 200, 200)
         return nn.Sigmoid()(output)
