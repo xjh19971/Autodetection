@@ -99,7 +99,7 @@ class AutoNet(nn.Module):
         logvar = x[:, 1, :]
         x = self.reparameterise(mu, logvar)
         x = x.view(scene, step, 6, self.latent)
-        x = x.transpose(1, 2)
+        x = x.transpose(1, 2).contiguous()
         x = x.view(-1, step, self.latent)
         x_lstm = []
         h0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
