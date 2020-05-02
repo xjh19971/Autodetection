@@ -28,12 +28,12 @@ class AutoNet(nn.Module):
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.rnn1 = nn.LSTM(1000, 300, 2, batch_first=True, dropout=0.3)
+        self.rnn1 = nn.LSTM(1000, 300, 1, batch_first=True)
         self.fc2 = nn.Sequential(
             nn.Linear(1800, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            #nn.Dropout(0.3),
         )
         self.deconv0 = self._make_deconv_layer(16, 8)
         self.deconv1 = self._make_deconv_layer(8, 4)

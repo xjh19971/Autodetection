@@ -141,7 +141,7 @@ class AutoNet(nn.Module):
         x = self.deconv0(x)#detection
         x = self.deconv1(x)
         x = self.deconv2(x)#resize conv conv resize conv conv
-        return nn.LogSoftmax(dim=1)(x)
+        return nn.Sigmoid()(x)
 
 
 def trainModel():

@@ -37,7 +37,7 @@ def collate_fn(batch):
     concated_roadmap=[]
     for i in range(len(batch)):
         concated_roadmap.append(batch[i][2].unsqueeze(0))
-    concated_roadmap=torch.cat(concated_roadmap,0).long()
+    concated_roadmap=torch.cat(concated_roadmap,0).unsqueeze(1).float()
     return [concated_input,bbox_list,category_list,concated_roadmap]
 
 def collate_fn_lstm(batch):
