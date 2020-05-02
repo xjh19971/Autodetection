@@ -147,14 +147,17 @@ class AutoNet(nn.Module):
         h0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
         c0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
         for k in range(step):
-            x_pad = torch.zeros((6 * scene, x.size(1) - k - 1, self.latent)).to(self.device)
-            x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
+            if k<self.step_size:
+                x_pad = torch.zeros((6 * scene, self.step_size - k - 1, self.latent)).to(self.device)
+                x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
+            else:
+                x_lstm_unit =x[:, k-4+1:k + 1, :]
             x_lstm.append(x_lstm_unit)
         x_lstm = torch.cat(x_lstm, dim=0)
         x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
         x_lstm_final = []
         for k in range(step):
-            x_lstm_unit = x_lstm_out[k * scene * 6:(k + 1) * scene * 6, step - 1, :]
+            x_lstm_unit = x_lstm_out[k * scene * 6:(k + 1) * scene * 6, self.step_size - 1, :]
             x_lstm_final.append(x_lstm_unit)
         x = torch.cat(x_lstm_final, dim=0)
         x = x.view(scene, 6, step, self.fc_num)
@@ -172,5 +175,5 @@ class AutoNet(nn.Module):
         return nn.LogSoftmax(dim=2)(output)
 
 
-def trainModel(device, scene_batch_size=4, batch_size=4, step_size=4):
+def trainModel(device, scene_batch_size=4, batch_size=8, step_size=4):
     return AutoNet(scene_batch_size, batch_size, step_size, device)

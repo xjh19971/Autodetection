@@ -131,14 +131,15 @@ if __name__ == '__main__':
                                            scene_index=labeled_scene_index,
                                            transform=data_transforms,
                                            roadmap_transform=roadmap_transforms,
-                                           extra_info=False
+                                           extra_info=False,
+                                           scene_batch_size=8
                                            )
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=2,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, num_workers=1,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=2,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=True, num_workers=1,
                                              collate_fn=collate_fn_lstm)
 
     # sample, target, road_image, extra = iter(trainloader).next()
