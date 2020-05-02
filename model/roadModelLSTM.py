@@ -75,7 +75,7 @@ class AutoNet(nn.Module):
         self.deconv1 = self._make_deconv_layer(8, 4)
         self.inplanes = 4
         self.conv2 = self._make_layer(BasicBlock, 4, 2)
-        self.deconv2 = self._make_deconv_layer(4, 1, last=True)
+        self.deconv2 = self._make_deconv_layer(4, 2, last=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -168,8 +168,8 @@ class AutoNet(nn.Module):
         x = self.deconv1(x)
         x = self.conv2(x)
         x = self.deconv2(x)  # resize conv conv resize conv conv
-        output = x.view(scene, step, 1, 200, 200)
-        return nn.Sigmoid()(output)
+        output = x.view(scene, step, 2, 200, 200)
+        return nn.LogSoftmax(dim=2)(output)
 
 
 def trainModel(device, scene_batch_size=4, batch_size=4, step_size=4):

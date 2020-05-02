@@ -14,7 +14,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 
 from dataset.dataHelper import LabeledDatasetScene
-from utils.helper import collate_fn_lstm, draw_box
+from utils.helper import collate_fn_lstm, draw_box,compute_ts_road_map
 from model.roadModelLSTM import trainModel
 
 cuda = torch.cuda.is_available()
@@ -35,7 +35,7 @@ labeled_scene_index = np.arange(106, 134)
 start_epoch = 150
 long_cycle = 30
 short_cycle = 5
-start_lr = 0.002
+start_lr = 0.01
 
 
 def lambdaScheduler(epoch):
@@ -56,6 +56,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
     # Set model to training mode
     model.train()
     # Loop through data points
+    AUC=0
     for batch_idx, data in enumerate(train_loader):
         # Send data and target to device
         sample, bbox_list, category_list, road_image = data
@@ -65,19 +66,23 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
         # Pass data through model
         output = model(sample)
         # Compute the negative log likelihood loss
-        loss = nn.BCELoss()(output, road_image)
+        output=output.view(-1,2,200,200)
+        road_image=road_image.view(-1,200,200)
+        loss = nn.NLLLoss()(output, road_image)
+        _, predicted = torch.max(output.data, 1)
+        AUC=compute_ts_road_map(predicted,road_image)
         # Backpropagate loss
         loss.backward()
         # Make a step with the optimizer
         optimizer.step()
         # Print loss (uncomment lines below once implemented)
         if batch_idx % log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAccuracy: {:.6f}'.format(
                 epoch, batch_idx * len(sample), len(train_loader.dataset),
-                       100. * batch_idx / len(train_loader), loss.item()))
-    print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                       100. * batch_idx / len(train_loader), loss.item(), AUC))
+    print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAccuracy: {:.6f}'.format(
         epoch, len(train_loader.dataset), len(train_loader.dataset),
-        100. * batch_idx / len(train_loader), loss.item()))
+        100. * batch_idx / len(train_loader), loss.item(), AUC))
 
 
 def test(model, device, test_loader):
@@ -88,19 +93,24 @@ def test(model, device, test_loader):
     with torch.no_grad():
         # Loop through data points
         batch_num = 0
+        AUC=0
         for batch_idx, data in enumerate(test_loader):
             # Send data to device
             sample, bbox_list, category_list, road_image = data
             sample, road_image = sample.to(device), road_image.to(device)
             # Pass data through model
             output = model(sample)
-            test_loss += nn.BCELoss()(output, road_image)
+            output = output.view(-1, 2, 200, 200)
+            road_image = road_image.view(-1, 200, 200)
+            test_loss += nn.NLLLoss()(output, road_image)
+            _, predicted = torch.max(output.data, 1)
+            AUC = compute_ts_road_map(predicted, road_image)
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
         avg_test_loss = test_loss / batch_num
         # Print loss (uncomment lines below once implemented)
-        print('\nTest set: Average loss: {:.4f}\n'.format(avg_test_loss))
+        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss,AUC))
     return avg_test_loss
 
 

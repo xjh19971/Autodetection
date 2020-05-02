@@ -31,7 +31,7 @@ class AutoNet(nn.Module):
         )
         self.deconv0 = self._make_deconv_layer(16, 8)
         self.deconv1 = self._make_deconv_layer(8, 4)
-        self.deconv2 = self._make_deconv_layer(4, 1, last=True)
+        self.deconv2 = self._make_deconv_layer(4, 2, last=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -96,7 +96,7 @@ class AutoNet(nn.Module):
         x = self.deconv0(x)  # detection
         x = self.deconv1(x)
         x = self.deconv2(x)  # resize conv conv resize conv conv
-        return nn.Sigmoid()(x)
+        return nn.LogSoftmax(dim=1)(x)
 
 
 def trainModel():
