@@ -167,7 +167,7 @@ if __name__ == '__main__':
         test_loss = test(model, device, testloader)
         scheduler.step(epoch)
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'roadModel.pkl')
+            torch.save(model.state_dict(), 'roadModelLSTM.pkl')
             last_test_loss = test_loss
         if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
             optimizer.update_swa()
@@ -180,5 +180,5 @@ if __name__ == '__main__':
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'roadModel.pkl')
+        torch.save(model.state_dict(), 'roadModelLSTM.pkl')
         last_test_loss = test_loss
