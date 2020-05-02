@@ -1,15 +1,8 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
-
+import numpy as np
 from model.EfficientNetBackbone import EfficientNet
-
-
-def conv3x3(in_planes, out_planes, stride=1):
-    """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
-
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -65,13 +58,13 @@ class AutoNet(nn.Module):
             nn.Linear(1000, 300, bias=False),
             nn.BatchNorm1d(300),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4)
+            #nn.Dropout(0.4)
         )
         self.fc2 = nn.Sequential(
             nn.Linear(1800, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4)
+            #nn.Dropout(0.4)
         )
         self.deconv0 = self._make_deconv_layer(16,8)
         self.deconv1 = self._make_deconv_layer(8,4)
@@ -116,7 +109,6 @@ class AutoNet(nn.Module):
                 layers.append(
                     nn.ConvTranspose2d(inplanes, outplanes, 3, stride=2, padding=1,
                                        output_padding=1))
-                layers.append(nn.Sigmoid())
             else:
                 layers.append(
                     nn.ConvTranspose2d(inplanes, outplanes * num_anchors, 3, stride=2, padding=1,

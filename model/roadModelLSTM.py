@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
 import torch
-
+import numpy as np
 from model.EfficientNetBackbone import EfficientNet
 
 
@@ -15,7 +15,7 @@ def conv3x3(in_planes, out_planes, stride=1):
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, num_classes=2):
         self.latent = 1000
-        self.fc_num=300
+        self.fc_num = 300
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
@@ -33,7 +33,7 @@ class AutoNet(nn.Module):
             nn.Linear(1800, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            #nn.Dropout(0.3),
+            # nn.Dropout(0.3),
         )
         self.deconv0 = self._make_deconv_layer(16, 8)
         self.deconv1 = self._make_deconv_layer(8, 4)
@@ -47,6 +47,11 @@ class AutoNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.ConvTranspose2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.LSTM):
+                nn.init.xavier_normal_(m.all_weights[0][0])
+                nn.init.xavier_normal_(m.all_weights[0][1])
+                nn.init.xavier_normal_(m.all_weights[1][0])
+                nn.init.xavier_normal_(m.all_weights[1][1])
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -78,7 +83,6 @@ class AutoNet(nn.Module):
                 layers.append(
                     nn.ConvTranspose2d(inplanes, outplanes, 3, stride=2, padding=1,
                                        output_padding=1))
-                layers.append(nn.Sigmoid())
             else:
                 layers.append(
                     nn.ConvTranspose2d(inplanes, outplanes * num_anchors, 3, stride=2, padding=1,
@@ -105,26 +109,27 @@ class AutoNet(nn.Module):
         h0 = torch.zeros((1, 6 * scene * step, self.fc_num)).to(self.device)
         c0 = torch.zeros((1, 6 * scene * step, self.fc_num)).to(self.device)
         for k in range(step):
-            x_pad = torch.zeros((6*scene, x.size(1) - k - 1, self.latent)).to(self.device)
+            x_pad = torch.zeros((6 * scene, x.size(1) - k - 1, self.latent)).to(self.device)
             x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
             x_lstm.append(x_lstm_unit)
         x_lstm = torch.cat(x_lstm, dim=0)
         x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
-        x_lstm_final=[]
+        x_lstm_final = []
         for k in range(step):
-            x_lstm_unit=x_lstm_out[k*scene*6:(k+1)*scene*6,step-1,:]
+            x_lstm_unit = x_lstm_out[k * scene * 6:(k + 1) * scene * 6, step - 1, :]
             x_lstm_final.append(x_lstm_unit)
-        x=torch.cat(x_lstm_final,dim=0)
-        x = x.view(scene,6,step,self.fc_num)
-        x = x.transpose(1,2).contiguous()
-        x = x.view(scene*step,self.fc_num*6)
+        x = torch.cat(x_lstm_final, dim=0)
+        x = x.view(scene, 6, step, self.fc_num)
+        x = x.transpose(1, 2).contiguous()
+        x = x.view(scene * step, self.fc_num * 6)
         x = self.fc2(x)
         x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         x = self.deconv0(x)  # detection
         x = self.deconv1(x)
         x = self.deconv2(x)  # resize conv conv resize conv conv
-        output = x.view(scene,step,1,200,200)
-        return output
+        output = x.view(scene, step, 1, 200, 200)
+        return nn.Sigmoid()(output)
 
-def trainModel(device,scene_batch_size=4, batch_size=4, step_size=4):
-    return AutoNet(scene_batch_size, batch_size, step_size,device)
+
+def trainModel(device, scene_batch_size=4, batch_size=4, step_size=4):
+    return AutoNet(scene_batch_size, batch_size, step_size, device)
