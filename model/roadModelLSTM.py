@@ -13,13 +13,14 @@ def conv3x3(in_planes, out_planes, stride=1):
 
 
 class AutoNet(nn.Module):
-    def __init__(self, scene_batch_size, batch_size, step_size,device, num_classes=2):
+    def __init__(self, scene_batch_size, batch_size, step_size, device, num_classes=2):
         self.latent = 1000
+        self.fc_num=300
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
         self.num_classes = num_classes
-        self.device=device
+        self.device = device
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
@@ -27,7 +28,7 @@ class AutoNet(nn.Module):
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.rnn1 = nn.LSTM(1000, 300, 2, batch_first=True,dropout=0.3)
+        self.rnn1 = nn.LSTM(1000, 300, 2, batch_first=True, dropout=0.3)
         self.fc2 = nn.Sequential(
             nn.Linear(1800, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
@@ -89,15 +90,49 @@ class AutoNet(nn.Module):
 
     def forward(self, x):
         # (S,B,18,H,W)
+        scene = x.size(0)
+        step = x.size(1)
+        x = x.view(-1, 3, 128, 160)
+        x = self.efficientNet(x)
+        x = x.view(x.size(0), 2, -1)
+        mu = x[:, 0, :]
+        logvar = x[:, 1, :]
+        x = self.reparameterise(mu, logvar)
+        x = x.view(scene, step, 6, self.latent)
+        x = x.transpose(1, 2)
+        x = x.view(-1, step, self.latent)
+        x_lstm = []
+        h0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
+        c0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
+        for k in range(step):
+            x_pad = torch.zeros((6, x.size(1) - k - 1, self.latent)).to(self.device)
+            x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
+            x_lstm.append(x_lstm_unit)
+        x_lstm = torch.cat(x_lstm, dim=0)
+        x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
+        x_lstm_final=[]
+        for k in range(step):
+            x_lstm_unit=x_lstm_out[k*scene*6:(k+1)*scene*6,step-1,:]
+            x_lstm_final.append(x_lstm_unit)
+        x=torch.cat(x_lstm_final,dim=0)
+        x = x.view(scene,6,step,self.fc_num)
+        x = x.transpose(1,2).contiguous()
+        x = x.view(scene*step,self.fc_num*6)
+        x = self.fc2(x)
+        x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+        x = self.deconv0(x)  # detection
+        x = self.deconv1(x)
+        x = self.deconv2(x)  # resize conv conv resize conv conv
+        output = x.view(scene,step,1,200,200)
+        '''
         output = []
         scene = x.size(0)
         for i in range(scene):
             output_scene = []
             x_scene = x[i, :, :, :, :]
-            h0 = torch.zeros((2, 6, 300)).to(self.device)
-            c0 = torch.zeros((2, 6, 300)).to(self.device)
-            x_lstm = torch.zeros((6, self.step_size, 1000)).to(self.device)
             for j in range(0, self.scene_batch_size, self.batch_size):
+                h0 = torch.zeros((2, 6, 300)).to(self.device)
+                c0 = torch.zeros((2, 6, 300)).to(self.device)
                 batch_x = x_scene[j:j + self.batch_size, :, :, :]
                 batch_x = batch_x.view([batch_x.size(0) * 6, -1, 128, 160])
                 batch_x = self.efficientNet(batch_x)
@@ -107,12 +142,15 @@ class AutoNet(nn.Module):
                 batch_x = self.reparameterise(mu, logvar)
                 batch_x = batch_x.view([self.batch_size, -1, 1000])
                 batch_x = batch_x.transpose(0, 1)
-                x_lstm_out_list = []
+                x_lstm=[]
                 for k in range(batch_x.size(1)):
-                    x_lstm = x_lstm[:, 1:, :]
-                    x_lstm = torch.cat([x_lstm, batch_x[:, k, :].unsqueeze(1)], dim=1)
-                    x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
-                    x_lstm_out_list.append(x_lstm_out[:, self.step_size - 1, :])
+                    x_pad=torch.zeros((6,batch_x.size(1)-k-1,1000)).to(self.device)
+                    x_lstm_unit=torch.cat([x_pad,batch_x[:,:k+1,:]],dim=1)
+                    x_lstm.append(x_lstm_unit)
+                x_lstm=torch.cat(x_lstm,dim=0)
+                x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
+                x_lstm_out=x_lstm_out.view(6)
+                x_lstm_out_list = []
                 ho, c0 = ht, ct
                 batch_x = torch.stack(x_lstm_out_list, dim=1).transpose(0, 1)
                 batch_x = batch_x.reshape(self.batch_size, -1)
@@ -125,8 +163,8 @@ class AutoNet(nn.Module):
             output_scene = torch.cat(output_scene)
             output.append(output_scene)
         output = torch.stack(output)
+        '''
         return output
-
 
 def trainModel(device,scene_batch_size=4, batch_size=4, step_size=4):
     return AutoNet(scene_batch_size, batch_size, step_size,device)
