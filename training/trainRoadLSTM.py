@@ -32,7 +32,7 @@ unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
-start_epoch = 150
+start_epoch = 300
 long_cycle = 30
 short_cycle = 5
 start_lr = 0.01
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     optimizer = torchcontrib.optim.SWA(optimizer)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
-    for epoch in range(1, 200 + 1):
+    for epoch in range(1, 350 + 1):
         # Train model
         start_time = time.time()
         train(model, device, trainloader, optimizer, epoch)
@@ -159,7 +159,7 @@ if __name__ == '__main__':
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'roadModel.pkl')
             last_test_loss = test_loss
-        if epoch >= 150 and (epoch + 1) % short_cycle == 0:
+        if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
             optimizer.update_swa()
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         end_time = time.time()
