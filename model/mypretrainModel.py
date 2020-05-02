@@ -51,23 +51,23 @@ class AutoPretrainNet(nn.Module):
         self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=2*self.latent),
+            nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
         self.fc2 = nn.Sequential(
             nn.Linear(1000, 4 * 5 * 256),
-            #nn.BatchNorm1d(4 * 5 * 128),
-            #nn.ReLU(inplace=True),
+            # nn.BatchNorm1d(4 * 5 * 128),
+            # nn.ReLU(inplace=True),
             # nn.Dropout(p=0.4)
         )
         self.deconv0 = self._make_deconv_layer(256, 128)
-        self.inplanes=128
-        self.conv0=self._make_layer(BasicBlock,128,2)
+        self.inplanes = 128
+        self.conv0 = self._make_layer(BasicBlock, 128, 2)
         self.deconv1 = self._make_deconv_layer(128, 64)
-        self.inplanes=64
+        self.inplanes = 64
         self.conv1 = self._make_layer(BasicBlock, 64, 2)
         self.deconv2 = self._make_deconv_layer(64, 32)
-        self.inplanes=32
+        self.inplanes = 32
         self.conv2 = self._make_layer(BasicBlock, 32, 2)
         self.deconv3 = self._make_deconv_layer(32, 3, last=True)
         self.upSample = nn.Upsample(scale_factor=2)
@@ -81,18 +81,8 @@ class AutoPretrainNet(nn.Module):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
     def _make_layer(self, block, planes, blocks, stride=1):
-        downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion),
-            )
-
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
+        for i in range(blocks):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
@@ -133,7 +123,7 @@ class AutoPretrainNet(nn.Module):
         mu = x[:, 0, :]
         logvar = x[:, 1, :]
         x = self.reparameterise(mu, logvar)
-        #x = x.view(batch_size, -1)
+        # x = x.view(batch_size, -1)
         x = self.fc2(x)
         x = x.reshape(x.size(0), -1, 4, 5)  # x = x.view(x.size(0)*6,-1,128,160)
         x = self.deconv0(x)  # detection

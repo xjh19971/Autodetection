@@ -84,7 +84,6 @@ if __name__ == '__main__':
         transforms.Pad((7,0)),
         transforms.Resize((128,160), 0),
         transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])   #for ImageNet
     ])
     roadmap_transforms = transforms.Compose([
         #transforms.RandomHorizontalFlip(),

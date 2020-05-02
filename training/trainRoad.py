@@ -15,7 +15,8 @@ from torch.optim import lr_scheduler
 
 from dataset.dataHelper import LabeledDataset
 from utils.helper import collate_fn, draw_box,compute_ts_road_map
-from model.roadModel import trainModel
+import model.roadModel as roadModel
+import re
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
@@ -36,7 +37,7 @@ start_epoch = 300
 long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
-
+pretrain_file=None
 
 def lambdaScheduler(epoch):
     if epoch == 0:
@@ -139,7 +140,15 @@ if __name__ == '__main__':
 
     # sample, target, road_image, extra = iter(trainloader).next()
     # print(torch.stack(sample).shape)
-    model = trainModel()
+    model = roadModel.trainModel()
+    if pretrain_file is not None:
+        pretrain_dict = torch.load(pretrain_file, map_location='cuda:0')
+        model_dict = model.state_dict()
+        pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and re.search('^efficientNet.*', k)}
+        model_dict.update(pretrain_dict)
+        model.load_state_dict(model_dict)
+        for para in model.efficientNet.parameters():
+            para.requires_grad = False
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)

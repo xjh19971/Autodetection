@@ -68,13 +68,13 @@ class AutoNet(nn.Module):
             nn.Dropout(0.2),
         )
         self.inplanes = 16
-        self.conv0 = self._make_layer(BasicBlock, 16, 2)
+        self.conv0 = self._make_layer(BasicBlock, 16, 1)
         self.deconv0 = self._make_deconv_layer(16, 8)
         self.inplanes = 8
-        self.conv1 = self._make_layer(BasicBlock, 8, 2)
+        self.conv1 = self._make_layer(BasicBlock, 8, 1)
         self.deconv1 = self._make_deconv_layer(8, 4)
         self.inplanes = 4
-        self.conv2 = self._make_layer(BasicBlock, 4, 2)
+        self.conv2 = self._make_layer(BasicBlock, 4, 1)
         self.deconv2 = self._make_deconv_layer(4, 2, last=True)
 
         for m in self.modules():

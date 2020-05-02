@@ -12,10 +12,10 @@ import torch.nn.functional as F
 from torchvision import transforms
 import torch.optim as optim
 from torch.optim import lr_scheduler
-
+import re
 from dataset.dataHelper import LabeledDatasetScene
-from utils.helper import collate_fn_lstm, draw_box,compute_ts_road_map
-from model.roadModelLSTM import trainModel
+from utils.helper import collate_fn_lstm, draw_box, compute_ts_road_map
+import model.roadModelLSTM as roadModel
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
@@ -36,6 +36,7 @@ start_epoch = 300
 long_cycle = 30
 short_cycle = 5
 start_lr = 0.01
+pretrain_file = None
 
 
 def lambdaScheduler(epoch):
@@ -56,7 +57,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
     # Set model to training mode
     model.train()
     # Loop through data points
-    AUC=0
+    AUC = 0
     for batch_idx, data in enumerate(train_loader):
         # Send data and target to device
         sample, bbox_list, category_list, road_image = data
@@ -66,11 +67,11 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
         # Pass data through model
         output = model(sample)
         # Compute the negative log likelihood loss
-        output=output.view(-1,2,200,200)
-        road_image=road_image.view(-1,200,200)
+        output = output.view(-1, 2, 200, 200)
+        road_image = road_image.view(-1, 200, 200)
         loss = nn.NLLLoss()(output, road_image)
         _, predicted = torch.max(output.data, 1)
-        AUC=compute_ts_road_map(predicted,road_image)
+        AUC = compute_ts_road_map(predicted, road_image)
         # Backpropagate loss
         loss.backward()
         # Make a step with the optimizer
@@ -93,7 +94,7 @@ def test(model, device, test_loader):
     with torch.no_grad():
         # Loop through data points
         batch_num = 0
-        AUC=0
+        AUC = 0
         for batch_idx, data in enumerate(test_loader):
             # Send data to device
             sample, bbox_list, category_list, road_image = data
@@ -110,7 +111,7 @@ def test(model, device, test_loader):
         # Compute the average test_loss
         avg_test_loss = test_loss / batch_num
         # Print loss (uncomment lines below once implemented)
-        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss,AUC))
+        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss, AUC))
     return avg_test_loss
 
 
@@ -144,7 +145,15 @@ if __name__ == '__main__':
 
     # sample, target, road_image, extra = iter(trainloader).next()
     # print(torch.stack(sample).shape)
-    model = trainModel(device)
+    model = roadModel.trainModel()
+    if pretrain_file is not None:
+        pretrain_dict = torch.load(pretrain_file, map_location='cuda:0')
+        model_dict = model.state_dict()
+        pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and re.search('^efficientNet.*', k)}
+        model_dict.update(pretrain_dict)
+        model.load_state_dict(model_dict)
+        for para in model.efficientNet.parameters():
+            para.requires_grad = False
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)

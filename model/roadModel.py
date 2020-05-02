@@ -3,6 +3,46 @@ import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
 import numpy as np
 from model.EfficientNetBackbone import EfficientNet
+from model.mypretrainModel import AutoPretrainNet
+import torch
+
+
+def conv3x3(in_planes, out_planes, stride=1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
+                     padding=1, bias=False)
+
+
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super(BasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
 
 
 class AutoNet(nn.Module):
@@ -29,8 +69,14 @@ class AutoNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(0.2)
         )
+        self.inplanes = 16
+        self.conv0 = self._make_layer(BasicBlock, 16, 1)
         self.deconv0 = self._make_deconv_layer(16, 8)
+        self.inplanes = 8
+        self.conv1 = self._make_layer(BasicBlock, 8, 1)
         self.deconv1 = self._make_deconv_layer(8, 4)
+        self.inplanes = 4
+        self.conv2 = self._make_layer(BasicBlock, 4, 1)
         self.deconv2 = self._make_deconv_layer(4, 2, last=True)
 
         for m in self.modules():
@@ -43,18 +89,8 @@ class AutoNet(nn.Module):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
     def _make_layer(self, block, planes, blocks, stride=1):
-        downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion),
-            )
-
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
+        for i in range(blocks):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
@@ -93,8 +129,11 @@ class AutoNet(nn.Module):
         x = x.view(batch_size, -1)
         x = self.fc2(x)
         x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+        x = self.conv0(x)
         x = self.deconv0(x)  # detection
+        x = self.conv1(x)
         x = self.deconv1(x)
+        x = self.conv2(x)
         x = self.deconv2(x)  # resize conv conv resize conv conv
         return nn.LogSoftmax(dim=1)(x)
 
