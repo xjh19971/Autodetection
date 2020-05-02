@@ -102,8 +102,8 @@ class AutoNet(nn.Module):
         x = x.transpose(1, 2).contiguous()
         x = x.view(-1, step, self.latent)
         x_lstm = []
-        h0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
-        c0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
+        h0 = torch.zeros((1, 6 * scene * step, self.fc_num)).to(self.device)
+        c0 = torch.zeros((1, 6 * scene * step, self.fc_num)).to(self.device)
         for k in range(step):
             x_pad = torch.zeros((6*scene, x.size(1) - k - 1, self.latent)).to(self.device)
             x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
