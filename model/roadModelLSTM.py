@@ -124,46 +124,6 @@ class AutoNet(nn.Module):
         x = self.deconv1(x)
         x = self.deconv2(x)  # resize conv conv resize conv conv
         output = x.view(scene,step,1,200,200)
-        '''
-        output = []
-        scene = x.size(0)
-        for i in range(scene):
-            output_scene = []
-            x_scene = x[i, :, :, :, :]
-            for j in range(0, self.scene_batch_size, self.batch_size):
-                h0 = torch.zeros((2, 6, 300)).to(self.device)
-                c0 = torch.zeros((2, 6, 300)).to(self.device)
-                batch_x = x_scene[j:j + self.batch_size, :, :, :]
-                batch_x = batch_x.view([batch_x.size(0) * 6, -1, 128, 160])
-                batch_x = self.efficientNet(batch_x)
-                batch_x = batch_x.view(batch_x.size(0), 2, -1)
-                mu = batch_x[:, 0, :]
-                logvar = batch_x[:, 1, :]
-                batch_x = self.reparameterise(mu, logvar)
-                batch_x = batch_x.view([self.batch_size, -1, 1000])
-                batch_x = batch_x.transpose(0, 1)
-                x_lstm=[]
-                for k in range(batch_x.size(1)):
-                    x_pad=torch.zeros((6,batch_x.size(1)-k-1,1000)).to(self.device)
-                    x_lstm_unit=torch.cat([x_pad,batch_x[:,:k+1,:]],dim=1)
-                    x_lstm.append(x_lstm_unit)
-                x_lstm=torch.cat(x_lstm,dim=0)
-                x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
-                x_lstm_out=x_lstm_out.view(6)
-                x_lstm_out_list = []
-                ho, c0 = ht, ct
-                batch_x = torch.stack(x_lstm_out_list, dim=1).transpose(0, 1)
-                batch_x = batch_x.reshape(self.batch_size, -1)
-                batch_x = self.fc2(batch_x)
-                batch_x = batch_x.view(batch_x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
-                batch_x = self.deconv0(batch_x)  # detection
-                batch_x = self.deconv1(batch_x)
-                batch_x = self.deconv2(batch_x)  # resize conv conv resize conv conv
-                output_scene.append(batch_x)
-            output_scene = torch.cat(output_scene)
-            output.append(output_scene)
-        output = torch.stack(output)
-        '''
         return output
 
 def trainModel(device,scene_batch_size=4, batch_size=4, step_size=4):
