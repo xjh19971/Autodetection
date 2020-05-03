@@ -33,7 +33,7 @@ unlabeled_scene_index = np.arange(106)
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
 start_epoch = 300
-long_cycle = 30
+long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
 pretrain_file = None
@@ -91,10 +91,10 @@ def test(model, device, test_loader):
     model.eval()
     # Variable for the total loss
     test_loss = 0
+    AUC = 0
     with torch.no_grad():
         # Loop through data points
         batch_num = 0
-        AUC = 0
         for batch_idx, data in enumerate(test_loader):
             # Send data to device
             sample, bbox_list, category_list, road_image = data
@@ -105,13 +105,14 @@ def test(model, device, test_loader):
             road_image = road_image.view(-1, 200, 200)
             test_loss += nn.NLLLoss()(output, road_image)
             _, predicted = torch.max(output.data, 1)
-            AUC = compute_ts_road_map(predicted, road_image)
+            AUC += compute_ts_road_map(predicted, road_image)
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
         avg_test_loss = test_loss / batch_num
+        avg_AUC = AUC/ batch_num
         # Print loss (uncomment lines below once implemented)
-        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss, AUC))
+        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss, avg_AUC))
     return avg_test_loss
 
 

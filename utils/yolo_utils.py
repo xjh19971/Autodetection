@@ -263,10 +263,9 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     return output
 
 
-def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres,device,img_dim=800):
+def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres,img_dim=800):
     ByteTensor = torch.cuda.BoolTensor if pred_boxes.is_cuda else torch.BoolTensor
     FloatTensor = torch.cuda.FloatTensor if pred_boxes.is_cuda else torch.FloatTensor
-
     nB = pred_boxes.size(0)
     nA = pred_boxes.size(1)
     nC = pred_cls.size(-1)
@@ -274,15 +273,15 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres,device,img
 
 
     # Output tensors
-    obj_mask = ByteTensor(nB, nA, nG, nG).fill_(0).to(device)
-    noobj_mask = ByteTensor(nB, nA, nG, nG).fill_(1).to(device)
-    class_mask = FloatTensor(nB, nA, nG, nG).fill_(0).to(device)
-    iou_scores = FloatTensor(nB, nA, nG, nG).fill_(0).to(device)
-    tx = FloatTensor(nB, nA, nG, nG).fill_(0).to(device)
-    ty = FloatTensor(nB, nA, nG, nG).fill_(0).to(device)
-    tw = FloatTensor(nB, nA, nG, nG).fill_(0).to(device)
-    th = FloatTensor(nB, nA, nG, nG).fill_(0).to(device)
-    tcls = FloatTensor(nB, nA, nG, nG, nC).fill_(0).to(device)
+    obj_mask = ByteTensor(nB, nA, nG, nG).fill_(0)
+    noobj_mask = ByteTensor(nB, nA, nG, nG).fill_(1)
+    class_mask = FloatTensor(nB, nA, nG, nG).fill_(0)
+    iou_scores = FloatTensor(nB, nA, nG, nG).fill_(0)
+    tx = FloatTensor(nB, nA, nG, nG).fill_(0)
+    ty = FloatTensor(nB, nA, nG, nG).fill_(0)
+    tw = FloatTensor(nB, nA, nG, nG).fill_(0)
+    th = FloatTensor(nB, nA, nG, nG).fill_(0)
+    tcls = FloatTensor(nB, nA, nG, nG, nC).fill_(0)
 
     # Convert to position relative to box
     realtarget = []
@@ -290,7 +289,7 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres,device,img
         for j in range(target[0][i].shape[0]):
             realtarget.append([i, target[1][i][j], target[0][i][j][0] / img_dim, target[0][i][j][1] / img_dim,
                                target[0][i][j][2] / img_dim, target[0][i][j][3] / img_dim])
-    target=torch.tensor(realtarget).float().to(device)
+    target=torch.tensor(realtarget).float().cuda()
     # Convert to position relative to box
     target_boxes = target[:, 2:6] * nG
     gxy = target_boxes[:, :2]

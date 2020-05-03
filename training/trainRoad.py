@@ -89,9 +89,9 @@ def test(model, device, test_loader):
     model.eval()
     # Variable for the total loss
     test_loss = 0
+    AUC = 0
     with torch.no_grad():
         # Loop through data points
-        AUC=0
         batch_num = 0
         for batch_idx, data in enumerate(test_loader):
             # Send data to device
@@ -101,13 +101,14 @@ def test(model, device, test_loader):
             output = model(sample)
             test_loss += nn.NLLLoss()(output, road_image)
             _, predicted = torch.max(output.data, 1)
-            AUC = compute_ts_road_map(predicted, road_image)
+            AUC += compute_ts_road_map(predicted, road_image)
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
         avg_test_loss = test_loss / batch_num
+        avg_AUC=AUC/batch_num
         # Print loss (uncomment lines below once implemented)
-        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss,AUC))
+        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss,avg_AUC))
     return avg_test_loss
 
 
@@ -162,7 +163,7 @@ if __name__ == '__main__':
         test_loss = test(model, device, testloader)
         scheduler.step(epoch)
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'roadModel.pkl')
+            torch.save(model.state_dict(), 'roadModelori.pkl')
             last_test_loss = test_loss
         if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
             optimizer.update_swa()
@@ -175,5 +176,5 @@ if __name__ == '__main__':
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'roadModel.pkl')
+        torch.save(model.state_dict(), 'roadModelori.pkl')
         last_test_loss = test_loss
