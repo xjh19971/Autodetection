@@ -13,7 +13,7 @@ import matplotlib.patches as patches
 class YOLOLayer(nn.Module):
     """Detection layer"""
 
-    def __init__(self, anchors, num_classes, img_dim=800):
+    def __init__(self, anchors, num_classes, device,img_dim=800):
         super(YOLOLayer, self).__init__()
         self.anchors = anchors
         self.num_anchors = len(anchors)
@@ -26,6 +26,7 @@ class YOLOLayer(nn.Module):
         self.metrics = {}
         self.img_dim = img_dim
         self.grid_size = 0  # grid size
+        self.device=device
 
     def compute_grid_offsets(self, grid_size, cuda=True):
         self.grid_size = grid_size
@@ -93,6 +94,7 @@ class YOLOLayer(nn.Module):
                 target=targets,
                 anchors=self.scaled_anchors,
                 ignore_thres=self.ignore_thres,
+                device=self.device
             )
 
             # Loss : Mask outputs to ignore non-existing objects (except with conf. loss)

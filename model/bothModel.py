@@ -47,9 +47,10 @@ class Bottleneck(nn.Module):
 
 
 class AutoNet(nn.Module):
-    def __init__(self, anchors, detection_classes, num_classes=2):
+    def __init__(self, anchors,device, detection_classes, num_classes=2):
         self.num_classes = num_classes
         self.detection_classes = detection_classes
+        self.device=device
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3')
         feature = self.efficientNet._fc.in_features
@@ -190,5 +191,5 @@ class AutoNet(nn.Module):
         return [nn.LogSoftmax(dim=1)(x), output, total_loss]
 
 
-def trainModel(anchors, detection_classes=9):
-    return AutoNet(anchors, detection_classes)
+def trainModel(anchors,device, detection_classes=9):
+    return AutoNet(anchors,device, detection_classes)

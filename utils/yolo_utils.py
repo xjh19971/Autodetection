@@ -263,7 +263,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     return output
 
 
-def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
+def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres,device,img_dim=800):
     ByteTensor = torch.cuda.BoolTensor if pred_boxes.is_cuda else torch.BoolTensor
     FloatTensor = torch.cuda.FloatTensor if pred_boxes.is_cuda else torch.FloatTensor
 
@@ -272,7 +272,6 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
     nC = pred_cls.size(-1)
     nG = pred_boxes.size(2)
 
-    img_size = 800
 
     # Output tensors
     obj_mask = ByteTensor(nB, nA, nG, nG).fill_(0)
@@ -289,9 +288,9 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
     realtarget = []
     for i in range(len(target[0])):
         for j in range(target[0][i].shape[0]):
-            realtarget.append([i, target[1][i][j], target[0][i][j][0] / img_size, target[0][i][j][1] / img_size,
-                               target[0][i][j][2] / img_size, target[0][i][j][3] / img_size])
-    target=torch.tensor(realtarget).float().cuda()
+            realtarget.append([i, target[1][i][j], target[0][i][j][0] / img_dim, target[0][i][j][1] / img_dim,
+                               target[0][i][j][2] / img_dim, target[0][i][j][3] / img_dim])
+    target=torch.tensor(realtarget).float().to(device)
     # Convert to position relative to box
     target_boxes = target[:, 2:6] * nG
     gxy = target_boxes[:, :2]
