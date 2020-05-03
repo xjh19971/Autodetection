@@ -47,7 +47,7 @@ class BasicBlock(nn.Module):
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device,anchors,detection_classes, num_classes=2):
         self.latent = 1000
-        self.fc_num = 300
+        self.fc_num = 500
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
