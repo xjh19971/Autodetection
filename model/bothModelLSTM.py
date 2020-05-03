@@ -141,7 +141,7 @@ class AutoNet(nn.Module):
                 x_pad = torch.zeros((6 * scene, self.step_size - k - 1, self.latent)).to(self.device)
                 x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
             else:
-                x_lstm_unit =x[:, k-4+1:k + 1, :]
+                x_lstm_unit =x[:, k-self.step_size+1:k + 1, :]
             x_lstm.append(x_lstm_unit)
         x_lstm = torch.cat(x_lstm, dim=0)
         if branch==1:
@@ -192,8 +192,8 @@ class AutoNet(nn.Module):
         x2 = self.deconv2_1(x2)
         x2 = self.convfinal_1(x2)
         output2, total_loss = self.yolo1(x2, detection_target, 800)
-        output1 = x1.view(scene, step, 2, 200, 200)
-        output2 = x2.view(scene, step, len(self.anchors)*(self.detection_classes+5), 200, 200)
+        output1 = x1.view(-1, 2, 200, 200)
+        output2 = x2.view(-1, len(self.anchors)*(self.detection_classes+5), 200, 200)
         return nn.LogSoftmax(dim=2)(output1),output2,total_loss
 
 
