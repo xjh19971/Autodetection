@@ -181,6 +181,7 @@ class AutoNet(nn.Module):
         x1 = self.deconv2(x1)  # resize conv conv resize conv conv
         x1 = self.conv2(x1)
         x1 = self.convfinal(x1)
+
         x2 = self.batch_lstm(x,scene,step,1)
         x2 = self.fc2_1(x2)
         x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
@@ -191,10 +192,11 @@ class AutoNet(nn.Module):
         x2 = self.conv2_1(x2)
         x2 = self.deconv2_1(x2)
         x2 = self.convfinal_1(x2)
+
         output2, total_loss = self.yolo1(x2, detection_target, 800)
         output1 = x1.view(-1, 2, 200, 200)
         output2 = x2.view(-1, len(self.anchors)*(self.detection_classes+5), 200, 200)
-        return nn.LogSoftmax(dim=2)(output1),output2,total_loss
+        return nn.LogSoftmax(dim=1)(output1),output2,total_loss
 
 
 def trainModel(device,anchors,detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4):
