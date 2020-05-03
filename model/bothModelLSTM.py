@@ -193,7 +193,7 @@ class AutoNet(nn.Module):
         x2 = self.convfinal_1(x2)
         output2, total_loss = self.yolo1(x2, detection_target, 800)
         output1 = x1.view(scene, step, 2, 200, 200)
-        output2 = x2.view(scene, step, self.anchors*(self.detection_classes+5), 200, 200)
+        output2 = x2.view(scene, step, len(self.anchors)*(self.detection_classes+5), 200, 200)
         return nn.LogSoftmax(dim=2)(output1),output2,total_loss
 
 
