@@ -55,12 +55,18 @@ class AutoNet(nn.Module):
         self.device = device
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b4')
+        '''
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
+        '''
+        self.feature = self.efficientNet._fc.in_features
+        self.efficientNet._fc = nn.Sequential(
+            # nn.Dropout(p=0.4)
+        )
+        self.rnn1 = nn.LSTM(self.feature, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num*6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
