@@ -4,19 +4,21 @@ from model.MobileNet import MobileNetV3
 from model.EfficientNetBackbone import EfficientNet
 from model.detectionModel import YOLOLayer
 
-class Bottleneck(nn.Module):
-    expansion = 4
+def conv3x3(in_planes, out_planes, stride=1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
+                     padding=1, bias=False)
+
+class BasicBlock(nn.Module):
+    expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        super(BasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
 
@@ -29,10 +31,6 @@ class Bottleneck(nn.Module):
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
 
         if self.downsample is not None:
             residual = self.downsample(x)
@@ -44,45 +42,53 @@ class Bottleneck(nn.Module):
 
 class AutoNet(nn.Module):
     def __init__(self, anchors,detection_classes,num_classes=2):
-        self.inplanes = 64
+        self.latent = 1000
+        self.fc_num = 400
         self.num_classes = num_classes
         self.detection_classes=detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet=EfficientNet.from_name('efficientnet-b3')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=300, bias=False),
-            nn.BatchNorm1d(300),
+            nn.Linear(in_features=feature, out_features=400, bias=False),
+            nn.BatchNorm1d(400),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=0.4)
-        )
-        self.fc2 = nn.Sequential(
-            nn.Linear(1800, 25 * 25 * 16, bias=False),
-            nn.BatchNorm1d(25 * 25 * 16),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.4)
+            nn.Dropout(p=0.2)
         )
         self.fc2_1 = nn.Sequential(
-            nn.Linear(1800, 25 * 25 * 48, bias=False),
-            nn.BatchNorm1d(25 * 25 * 48),
+            nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
+            nn.BatchNorm1d(25 * 25 * 64),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=0.4)
+            nn.Dropout(p=0.2),
         )
-        self.deconv0 = self._make_deconv_layer(16,8)
-        self.deconv1 = self._make_deconv_layer(8,4)
-        self.deconv2 = self._make_deconv_layer(4,2, last=True)
-        self.conv0_0 = nn.Sequential(
-            nn.Conv2d(48, 256, kernel_size=1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True)
+        self.fc2_1 = nn.Sequential(
+            nn.Linear(self.fc_num * 6, 25 * 25 * 64, bias=False),
+            nn.BatchNorm1d(25 * 25 * 64),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
         )
-        self.inplanes=256
-        self.conv0_1 = self._make_layer(Bottleneck,64,2)
-        self.deconv0_1 = self._make_deconv_layer(256,128)
-        self.inplanes=128
-        self.conv1_1 = self._make_layer(Bottleneck,32,2)
-        self.deconv1_1 = self._make_deconv_layer(128,self.detection_classes+5, last=True,num_anchors=len(anchors))
-        self.yolo1=YOLOLayer(anchors, self.detection_classes, 800)
+        self.inplanes = 8
+        self.conv0 = self._make_layer(BasicBlock, 8, 1)
+        self.deconv0 = self._make_deconv_layer(16, 8)
+        self.inplanes = 4
+        self.conv1 = self._make_layer(BasicBlock, 4, 1)
+        self.deconv1 = self._make_deconv_layer(8, 4)
+        self.inplanes = 2
+        self.conv2 = self._make_layer(BasicBlock, 2, 1)
+        self.deconv2 = self._make_deconv_layer(4, 2)
+        self.convfinal = nn.Conv2d(2, 2, 1)
+
+        self.inplanes = 64
+        self.conv0_1 = self._make_layer(BasicBlock, 64, 1)
+        self.deconv0_1 = self._make_deconv_layer(64, 64)
+        self.inplanes = 64
+        self.conv1_1 = self._make_layer(BasicBlock, 64, 1)
+        self.deconv1_1 = self._make_deconv_layer(64, 64)
+        self.inplanes = 64
+        self.conv2_1 = self._make_layer(BasicBlock, 64, 1)
+        self.deconv2_1 = self._make_deconv_layer(64, 64)
+        self.convfinal_1 = nn.Conv2d(64, len(anchors)*(self.detection_classes+5), 1)
+        self.yolo1 = YOLOLayer(anchors, self.detection_classes,self.device, 800)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')

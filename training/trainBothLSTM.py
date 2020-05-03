@@ -33,10 +33,11 @@ unlabeled_scene_index = np.arange(106)
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
 start_epoch = 300
-long_cycle = 30
+long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
-pretrain_file = None
+gamma=0.1
+pretrain_file = 'pretrain.pkl'
 
 def get_anchors(anchors_path):
     '''loads the anchors from a file'''
@@ -49,13 +50,13 @@ def lambdaScheduler(epoch):
     if epoch == 0:
         return 1
     elif epoch < start_epoch:
-        return 0.5 ** (math.floor(epoch / long_cycle))
+        return gamma ** (math.floor(epoch / long_cycle))
     else:
         if epoch % short_cycle == 0:
-            return 0.5 ** math.floor(start_epoch / long_cycle / 2 + 1)
+            return gamma ** math.floor(start_epoch / long_cycle / 2 )
         else:
-            return 0.5 ** math.floor(start_epoch / long_cycle / 2 + 1) - \
-                   (0.5 ** math.floor(start_epoch / long_cycle / 2 + 1) - 0.5 ** math.floor(start_epoch / long_cycle)) \
+            return gamma ** math.floor(start_epoch / long_cycle / 2 ) - \
+                   (gamma ** math.floor(start_epoch / long_cycle / 2 ) - gamma ** math.floor(start_epoch / long_cycle)) \
                    * (epoch % short_cycle) / short_cycle
 
 
@@ -144,7 +145,7 @@ if __name__ == '__main__':
         # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
@@ -179,9 +180,9 @@ if __name__ == '__main__':
         for para in model.efficientNet.parameters():
             para.requires_grad = False
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
-    optimizer = torchcontrib.optim.SWA(optimizer)
+    #optimizer = torchcontrib.optim.SWA(optimizer)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
     for epoch in range(1, 350 + 1):
@@ -189,20 +190,20 @@ if __name__ == '__main__':
         start_time = time.time()
         train(model, device, trainloader, optimizer, epoch)
         test_loss = test(model, device, testloader)
+        print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'bothModelLSTM.pkl')
+            torch.save(model.state_dict(), 'bothModelLSTMpreP.pkl')
             last_test_loss = test_loss
-        if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
-            optimizer.update_swa()
-        print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
+        #if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
+            #optimizer.update_swa()
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    optimizer.swap_swa_sgd()
-    model = model.cpu()
-    optimizer.bn_update(trainloader, model)
-    model.to(device)
+    #optimizer.swap_swa_sgd()
+    #model = model.cpu()
+    #optimizer.bn_update(trainloader, model)
+    #model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'bothModelLSTM.pkl')
+        torch.save(model.state_dict(), 'bothModelLSTMpreP.pkl')
         last_test_loss = test_loss

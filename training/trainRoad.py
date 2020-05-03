@@ -14,7 +14,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 
 from dataset.dataHelper import LabeledDataset
-from utils.helper import collate_fn, draw_box,compute_ts_road_map
+from utils.helper import collate_fn, draw_box, compute_ts_road_map
 import model.roadModel as roadModel
 import re
 
@@ -37,7 +37,8 @@ start_epoch = 300
 long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
-pretrain_file=None
+pretrain_file = None
+
 
 def lambdaScheduler(epoch):
     if epoch == 0:
@@ -57,7 +58,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
     # Set model to training mode
     model.train()
     # Loop through data points
-    AUC=0
+    AUC = 0
     for batch_idx, data in enumerate(train_loader):
         # Send data and target to device
         sample, bbox_list, category_list, road_image = data
@@ -69,7 +70,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
         # Compute the negative log likelihood loss
         loss = nn.NLLLoss()(output, road_image)
         _, predicted = torch.max(output.data, 1)
-        AUC=compute_ts_road_map(predicted,road_image)
+        AUC = compute_ts_road_map(predicted, road_image)
         # Backpropagate loss
         loss.backward()
         # Make a step with the optimizer
@@ -81,7 +82,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
                        100. * batch_idx / len(train_loader), loss.item(), AUC))
     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAccuracy: {:.6f}'.format(
         epoch, len(train_loader.dataset), len(train_loader.dataset),
-        100. * batch_idx / len(train_loader), loss.item(),AUC))
+        100. * batch_idx / len(train_loader), loss.item(), AUC))
 
 
 def test(model, device, test_loader):
@@ -106,9 +107,9 @@ def test(model, device, test_loader):
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
         avg_test_loss = test_loss / batch_num
-        avg_AUC=AUC/batch_num
+        avg_AUC = AUC / batch_num
         # Print loss (uncomment lines below once implemented)
-        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss,avg_AUC))
+        print('\nTest set: Average loss: {:.4f}\t Accuracy: {:.4f}\n'.format(avg_test_loss, avg_AUC))
     return avg_test_loss
 
 
@@ -116,12 +117,12 @@ if __name__ == '__main__':
     data_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
-        transforms.Resize((128, 160)),
-        transforms.ToTensor()
+        transforms.Resize((128, 160),0),
+        transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
-        transforms.Resize((200, 200)),
+        transforms.Resize((200, 200),0),
         transforms.ToTensor()
     ])
     labeled_trainset = LabeledDataset(image_folder=image_folder,
@@ -131,16 +132,14 @@ if __name__ == '__main__':
                                       roadmap_transform=roadmap_transforms,
                                       extra_info=True
                                       )
-    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
+    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.85* len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
-                                                                             0.90 * len(labeled_trainset))])
+                                                                             0.85 * len(labeled_trainset))])
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn)
     testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn)
 
-    # sample, target, road_image, extra = iter(trainloader).next()
-    # print(torch.stack(sample).shape)
     model = roadModel.trainModel()
     if pretrain_file is not None:
         pretrain_dict = torch.load(pretrain_file, map_location='cuda:0')
@@ -151,9 +150,9 @@ if __name__ == '__main__':
         for para in model.efficientNet.parameters():
             para.requires_grad = False
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
-    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
-    optimizer = torchcontrib.optim.SWA(optimizer)
+    optimizer = optim.Adam(model.parameters(), lr=0.01,weight_decay=1e-8)
+    #scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
+    #optimizer = torchcontrib.optim.SWA(optimizer)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
     for epoch in range(1, 400 + 1):
@@ -161,18 +160,18 @@ if __name__ == '__main__':
         start_time = time.time()
         train(model, device, trainloader, optimizer, epoch)
         test_loss = test(model, device, testloader)
-        scheduler.step(epoch)
+        print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
+        #scheduler.step(epoch)
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'roadModelori.pkl')
             last_test_loss = test_loss
-        if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
-            optimizer.update_swa()
-        print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
+        #if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
+        #    optimizer.update_swa()
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    optimizer.swap_swa_sgd()
+    #optimizer.swap_swa_sgd()
     model = model.cpu()
-    optimizer.bn_update(trainloader, model)
+    #optimizer.bn_update(trainloader, model)
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):

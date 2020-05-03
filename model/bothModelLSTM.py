@@ -71,32 +71,29 @@ class AutoNet(nn.Module):
         )
         self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc2_1 = nn.Sequential(
-            nn.Linear(self.fc_num * 6, 25 * 25 * 64, bias=False),
-            nn.BatchNorm1d(25 * 25 * 64),
+            nn.Linear(self.fc_num * 6, 25 * 25 * 128, bias=False),
+            nn.BatchNorm1d(25 * 25 * 128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
-        self.inplanes = 8
-        self.conv0 = self._make_layer(BasicBlock, 8, 1)
-        self.deconv0 = self._make_deconv_layer(16, 8)
-        self.inplanes = 4
-        self.conv1 = self._make_layer(BasicBlock, 4, 1)
-        self.deconv1 = self._make_deconv_layer(8, 4)
-        self.inplanes = 2
-        self.conv2 = self._make_layer(BasicBlock, 2, 1)
-        self.deconv2 = self._make_deconv_layer(4, 2)
-        self.convfinal = nn.Conv2d(2, 2, 1)
+        self.inplanes = 16
+        self.conv0 = self._make_layer(BasicBlock, 16, 2)
+        self.deconv0 = self._make_deconv_layer(16, 16)
+        self.inplanes = 16
+        self.conv1 = self._make_layer(BasicBlock, 16, 2)
+        self.deconv1 = self._make_deconv_layer(16, 16)
+        self.inplanes = 16
+        self.conv2 = self._make_layer(BasicBlock, 16, 2)
+        self.deconv2 = self._make_deconv_layer(16, 16)
+        self.convfinal = nn.Conv2d(16,2, 1)
 
-        self.inplanes = 64
-        self.conv0_1 = self._make_layer(BasicBlock, 64, 1)
-        self.deconv0_1 = self._make_deconv_layer(64, 64)
-        self.inplanes = 64
-        self.conv1_1 = self._make_layer(BasicBlock, 64, 1)
-        self.deconv1_1 = self._make_deconv_layer(64, 64)
-        self.inplanes = 64
-        self.conv2_1 = self._make_layer(BasicBlock, 64, 1)
-        self.deconv2_1 = self._make_deconv_layer(64, 64)
-        self.convfinal_1 = nn.Conv2d(64, len(anchors)*(self.detection_classes+5), 1)
+        self.inplanes = 128
+        self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
+        self.deconv0_1 = self._make_deconv_layer(128, 128)
+        self.inplanes = 128
+        self.conv1_1 = self._make_layer(BasicBlock, 128, 2)
+        self.deconv1_1 = self._make_deconv_layer(128, 128)
+        self.convfinal_1 = nn.Conv2d(128, len(anchors)*(self.detection_classes+5), 1)
         self.yolo1 = YOLOLayer(anchors, self.detection_classes,self.device, 800)
 
         for m in self.modules():
@@ -189,8 +186,6 @@ class AutoNet(nn.Module):
         x2 = self.deconv0_1(x2)  # detection
         x2 = self.conv1_1(x2)
         x2 = self.deconv1_1(x2)
-        x2 = self.conv2_1(x2)
-        x2 = self.deconv2_1(x2)
         x2 = self.convfinal_1(x2)
 
         output2, total_loss = self.yolo1(x2, detection_target, 800)

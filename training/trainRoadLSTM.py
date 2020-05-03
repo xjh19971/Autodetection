@@ -121,7 +121,8 @@ if __name__ == '__main__':
         # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
     roadmap_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
@@ -158,7 +159,7 @@ if __name__ == '__main__':
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
-    optimizer = torchcontrib.optim.SWA(optimizer)
+    #optimizer = torchcontrib.optim.SWA(optimizer)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
     for epoch in range(1, 350 + 1):
@@ -170,14 +171,14 @@ if __name__ == '__main__':
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'roadModelLSTM.pkl')
             last_test_loss = test_loss
-        if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
-            optimizer.update_swa()
+        #if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
+            #optimizer.update_swa()
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    optimizer.swap_swa_sgd()
-    model = model.cpu()
-    optimizer.bn_update(trainloader, model)
+    #optimizer.swap_swa_sgd()
+    #model = model.cpu()
+    #optimizer.bn_update(trainloader, model)
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
