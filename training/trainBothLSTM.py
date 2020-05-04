@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchcontrib
 from torch.optim import lr_scheduler
 from torchvision import transforms
 
@@ -182,8 +181,7 @@ if __name__ == '__main__':
         for para in model.efficientNet.parameters():
             para.requires_grad = False
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
-    optimizer = torchcontrib.optim.SWA(optimizer)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 2
@@ -197,13 +195,9 @@ if __name__ == '__main__':
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'bothModelLSTM.pkl')
             last_test_loss = test_loss
-        if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
-            optimizer.update_swa()
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    optimizer.swap_swa_sgd()
     model = model.cpu()
-    optimizer.bn_update(trainloader, model)
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):

@@ -63,19 +63,19 @@ class AutoNet(nn.Module):
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.4)
+        self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4),
+            nn.Dropout(0.2),
         )
-        self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.4)
+        self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 128, bias=False),
             nn.BatchNorm1d(25 * 25 * 128),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4),
+            nn.Dropout(0.2),
         )
         self.inplanes = 16
         self.conv0 = self._make_layer(BasicBlock, 16, 2)

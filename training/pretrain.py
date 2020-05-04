@@ -30,7 +30,7 @@ labeled_scene_index = np.arange(106, 134)
 start_epoch = 150
 long_cycle = 30
 short_cycle = 5
-start_lr = 0.01
+start_lr = 0.004
 gamma = 0.25
 
 
@@ -129,8 +129,7 @@ if __name__ == '__main__':
     model = trainModel()
     model.to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
-    optimizer = torchcontrib.optim.SWA(optimizer)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
@@ -143,14 +142,14 @@ if __name__ == '__main__':
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'pretrainfinal.pkl')
             last_test_loss = test_loss
-        if epoch >= 150 and (epoch + 1) % short_cycle == 0:
-            optimizer.update_swa()
+        #if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
+            #optimizer.update_swa()
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    optimizer.swap_swa_sgd()
+    #optimizer.swap_swa_sgd()
     model = model.cpu()
-    optimizer.bn_update(trainloader, model)
+   # optimizer.bn_update(trainloader, model)
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
