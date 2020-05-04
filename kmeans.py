@@ -103,7 +103,7 @@ class YOLO_Kmeans:
 
 
 if __name__ == "__main__":
-    cluster_number = 6
+    cluster_number = 15
     filename = "./dataset/data/annotation.csv"
     kmeans = YOLO_Kmeans(cluster_number, filename)
     kmeans.txt2clusters()
