@@ -57,7 +57,7 @@ class AutoNet(nn.Module):
         self.anchors2= anchors[1:]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
+        self.efficientNet = EfficientNet.from_name('efficientnet-b3')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
@@ -72,8 +72,8 @@ class AutoNet(nn.Module):
         )
         self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.4)
         self.fc2_1 = nn.Sequential(
-            nn.Linear(self.fc_num * 6, 25 * 25 * 256, bias=False),
-            nn.BatchNorm1d(25 * 25 * 256),
+            nn.Linear(self.fc_num * 6, 25 * 25 * 128, bias=False),
+            nn.BatchNorm1d(25 * 25 * 128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.4),
         )
@@ -89,9 +89,9 @@ class AutoNet(nn.Module):
         self.inplanes = 2
         self.convfinal = nn.Conv2d(2, 2, 1)
 
-        self.inplanes = 256
-        self.conv0_1 = self._make_layer(BasicBlock, 256, 2)
-        self.deconv0_1 = self._make_deconv_layer(256, 128)
+        self.inplanes = 128
+        self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
+        self.deconv0_1 = self._make_deconv_layer(128, 128)
         self.inplanes = 128
         self.conv1_1_detect = self._make_layer(BasicBlock, 128, 2)
         self.convfinal_1 = nn.Conv2d(128, len(self.anchors2) * (self.detection_classes + 5), 1)
