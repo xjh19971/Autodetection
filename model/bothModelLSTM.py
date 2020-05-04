@@ -202,9 +202,7 @@ class AutoNet(nn.Module):
         detect_output2,detect_loss2 = self.yolo2(detect_output2,detection_target,800)
         total_loss=detect_loss1+detect_loss2
         output1 = x1.view(-1, 2, 200, 200)
-        output2 = detect_output1.view(-1, len(self.anchors2) * (self.detection_classes + 5), 200, 200)
-        output3 = detect_output2.view(-1, len(self.anchors1) * (self.detection_classes + 5), 200, 200)
-        return nn.LogSoftmax(dim=1)(output1), output2,output3, total_loss
+        return nn.LogSoftmax(dim=1)(output1), detect_output1,detect_output2, total_loss
 
 
 def trainModel(device, anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4):
