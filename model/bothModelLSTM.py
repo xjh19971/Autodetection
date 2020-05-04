@@ -79,15 +79,14 @@ class AutoNet(nn.Module):
         )
         self.inplanes = 16
         self.conv0 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv0 = self._make_deconv_layer(16, 16)
-        self.inplanes = 16
-        self.conv1 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv1 = self._make_deconv_layer(16, 8)
+        self.deconv0 = self._make_deconv_layer(16, 8)
         self.inplanes = 8
-        self.conv2 = self._make_layer(BasicBlock, 8, 2)
-        self.deconv2 = self._make_deconv_layer(8, 8)
-        self.inplanes = 8
-        self.conv3 = self._make_layer(BasicBlock, 8, 2)
+        self.conv1 = self._make_layer(BasicBlock, 8, 2)
+        self.deconv1 = self._make_deconv_layer(8, 4)
+        self.inplanes = 4
+        self.conv2 = self._make_layer(BasicBlock, 4, 2)
+        self.deconv2 = self._make_deconv_layer(4, 2)
+        self.inplanes = 2
         self.convfinal = nn.Conv2d(8, 2, 1)
 
         self.inplanes = 256
@@ -185,7 +184,6 @@ class AutoNet(nn.Module):
         x1 = self.deconv1(x1)
         x1 = self.conv2(x1)
         x1 = self.deconv2(x1)  # resize conv conv resize conv conv)
-        x1 = self.conv3(x1)
         x1 = self.convfinal(x1)
 
         x2 = self.batch_lstm(x, scene, step, 2)
