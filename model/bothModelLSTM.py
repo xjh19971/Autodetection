@@ -199,7 +199,7 @@ class AutoNet(nn.Module):
         detect_output2 =self.conv2_1_detect(x2)
         detect_output2 = self.convfinal_2(detect_output2)
         detect_output2,detect_loss2 = self.yolo2(detect_output2,detection_target,800)
-        total_loss=detect_loss1+detect_loss2
+        total_loss=0.9*detect_loss1+0.1*detect_loss2
         output1 = x1.view(-1, 2, 200, 200)
         return nn.LogSoftmax(dim=1)(output1), detect_output1,detect_output2, total_loss
 
