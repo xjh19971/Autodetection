@@ -125,7 +125,7 @@ class AutoPretrainNet(nn.Module):
         x = self.deconv3(x)
         x = self.upSample(x)
         x = x.view(batch_size, -1, 128, 160)
-        return x, mu, logvar
+        return nn.Sigmoid()(x), mu, logvar
 
 
 def trainModel():
