@@ -1,10 +1,8 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
-import numpy as np
+
 from model.EfficientNetBackbone import EfficientNet
-from model.mypretrainModel import AutoPretrainNet
-import torch
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -45,48 +43,34 @@ class BasicBlock(nn.Module):
         return out
 
 
-class AutoNet(nn.Module):
-    def __init__(self, num_classes=2):
+class AutoPretrainNet(nn.Module):
+    def __init__(self, num_classes=3):
         self.latent = 1000
-        self.fc_num = 300
         self.num_classes = num_classes
-        super(AutoNet, self).__init__()
+        super(AutoPretrainNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
-        '''
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.fc1 = nn.Sequential(
-            nn.Linear(self.latent, self.fc_num, bias=False),
-            nn.BatchNorm1d(self.fc_num),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.2)
-        )
-        '''
-        self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=self.fc_num),
-            nn.BatchNorm1d(self.fc_num),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.2)
-        )
         self.fc2 = nn.Sequential(
-            nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
-            nn.BatchNorm1d(25 * 25 * 16),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.2)
+            nn.Linear(1000, 4 * 5 * 256),
+            # nn.BatchNorm1d(4 * 5 * 128),
+            # nn.ReLU(inplace=True),
+            # nn.Dropout(p=0.4)
         )
-        self.inplanes = 16
-        self.conv0 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv0 = self._make_deconv_layer(16, 8)
-        self.inplanes = 8
-        self.conv1 = self._make_layer(BasicBlock, 8, 2)
-        self.deconv1 = self._make_deconv_layer(8, 4)
-        self.inplanes = 4
-        self.conv2 = self._make_layer(BasicBlock, 4, 2)
-        self.deconv2 = self._make_deconv_layer(4, 2, last=True)
-
+        self.deconv0 = self._make_deconv_layer(256, 128)
+        self.inplanes = 128
+        self.conv0 = self._make_layer(BasicBlock, 128, 2)
+        self.deconv1 = self._make_deconv_layer(128, 64)
+        self.inplanes = 64
+        self.conv1 = self._make_layer(BasicBlock, 64, 2)
+        self.deconv2 = self._make_deconv_layer(64, 32)
+        self.inplanes = 32
+        self.conv2 = self._make_layer(BasicBlock, 32, 2)
+        self.deconv3 = self._make_deconv_layer(32, 3, last=True)
+        self.upSample = nn.Upsample(scale_factor=2)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -120,31 +104,39 @@ class AutoNet(nn.Module):
                 layers.append(
                     nn.ConvTranspose2d(inplanes, outplanes * num_anchors, 3, stride=2, padding=1,
                                        output_padding=1))
+            layers.append(nn.Sigmoid())
         return nn.Sequential(*layers)
 
     def reparameterise(self, mu, logvar):
-        return mu
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = std.data.new(std.size()).normal_()
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
 
     def forward(self, x):
         batch_size = x.size(0)
         x = x.view(x.size(0) * 6, -1, 128, 160)
         x = self.efficientNet(x)
-        #x = x.view(x.size(0), 2, -1)
-        #mu = x[:, 0, :]
-        #logvar = x[:, 1, :]
-        #x = self.reparameterise(mu, logvar)
-        #x = self.fc1(x)
-        x = x.view(batch_size, -1)
+        x = x.view(x.size(0), 2, -1)
+        mu = x[:, 0, :]
+        logvar = x[:, 1, :]
+        x = self.reparameterise(mu, logvar)
+        # x = x.view(batch_size, -1)
         x = self.fc2(x)
-        x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
-        x = self.conv0(x)
+        x = x.reshape(x.size(0), -1, 4, 5)  # x = x.view(x.size(0)*6,-1,128,160)
         x = self.deconv0(x)  # detection
-        x = self.conv1(x)
+        x = self.conv0(x)
         x = self.deconv1(x)
+        x = self.conv1(x)
+        x = self.deconv2(x)
         x = self.conv2(x)
-        x = self.deconv2(x)  # resize conv conv resize conv conv
-        return nn.LogSoftmax(dim=1)(x)
+        x = self.deconv3(x)
+        x = self.upSample(x)
+        x = x.view(batch_size, -1, 128, 160)
+        return x, mu, logvar
 
 
 def trainModel():
-    return AutoNet()
+    return AutoPretrainNet()

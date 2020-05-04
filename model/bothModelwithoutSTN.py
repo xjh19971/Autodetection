@@ -1,17 +1,13 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
-import numpy as np
 from model.EfficientNetBackbone import EfficientNet
-from model.mypretrainModel import AutoPretrainNet
-import torch
-
+from model.detectionModel import YOLOLayer
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
-
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -44,49 +40,55 @@ class BasicBlock(nn.Module):
 
         return out
 
-
 class AutoNet(nn.Module):
-    def __init__(self, num_classes=2):
+    def __init__(self, anchors,detection_classes,num_classes=2):
         self.latent = 1000
-        self.fc_num = 300
+        self.fc_num = 400
         self.num_classes = num_classes
+        self.detection_classes=detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
+        self.efficientNet=EfficientNet.from_name('efficientnet-b3')
         feature = self.efficientNet._fc.in_features
-        '''
         self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=2 * self.latent),
-            # nn.Dropout(p=0.4)
-        )
-        self.fc1 = nn.Sequential(
-            nn.Linear(self.latent, self.fc_num, bias=False),
-            nn.BatchNorm1d(self.fc_num),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.2)
-        )
-        '''
-        self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=self.fc_num),
-            nn.BatchNorm1d(self.fc_num),
+            nn.Linear(in_features=feature, out_features=400, bias=False),
+            nn.BatchNorm1d(400),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.2)
         )
-        self.fc2 = nn.Sequential(
+        self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
-            nn.BatchNorm1d(25 * 25 * 16),
+            nn.BatchNorm1d(25 * 25 * 64),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.2)
+            nn.Dropout(p=0.2),
         )
-        self.inplanes = 16
-        self.conv0 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv0 = self._make_deconv_layer(16, 8)
+        self.fc2_1 = nn.Sequential(
+            nn.Linear(self.fc_num * 6, 25 * 25 * 64, bias=False),
+            nn.BatchNorm1d(25 * 25 * 64),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
+        )
         self.inplanes = 8
-        self.conv1 = self._make_layer(BasicBlock, 8, 2)
-        self.deconv1 = self._make_deconv_layer(8, 4)
+        self.conv0 = self._make_layer(BasicBlock, 8, 1)
+        self.deconv0 = self._make_deconv_layer(16, 8)
         self.inplanes = 4
-        self.conv2 = self._make_layer(BasicBlock, 4, 2)
-        self.deconv2 = self._make_deconv_layer(4, 2, last=True)
+        self.conv1 = self._make_layer(BasicBlock, 4, 1)
+        self.deconv1 = self._make_deconv_layer(8, 4)
+        self.inplanes = 2
+        self.conv2 = self._make_layer(BasicBlock, 2, 1)
+        self.deconv2 = self._make_deconv_layer(4, 2)
+        self.convfinal = nn.Conv2d(2, 2, 1)
 
+        self.inplanes = 64
+        self.conv0_1 = self._make_layer(BasicBlock, 64, 1)
+        self.deconv0_1 = self._make_deconv_layer(64, 64)
+        self.inplanes = 64
+        self.conv1_1 = self._make_layer(BasicBlock, 64, 1)
+        self.deconv1_1 = self._make_deconv_layer(64, 64)
+        self.inplanes = 64
+        self.conv2_1 = self._make_layer(BasicBlock, 64, 1)
+        self.deconv2_1 = self._make_deconv_layer(64, 64)
+        self.convfinal_1 = nn.Conv2d(64, len(anchors)*(self.detection_classes+5), 1)
+        self.yolo1 = YOLOLayer(anchors, self.detection_classes,self.device, 800)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -97,8 +99,11 @@ class AutoNet(nn.Module):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
     def _make_layer(self, block, planes, blocks, stride=1):
+        downsample = None
         layers = []
-        for i in range(blocks):
+        layers.append(block(self.inplanes, planes, stride, downsample))
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
@@ -122,29 +127,27 @@ class AutoNet(nn.Module):
                                        output_padding=1))
         return nn.Sequential(*layers)
 
-    def reparameterise(self, mu, logvar):
-        return mu
-
-    def forward(self, x):
-        batch_size = x.size(0)
-        x = x.view(x.size(0) * 6, -1, 128, 160)
+    def forward(self, x, detection_target):
+        batch_size=x.size(0)
+        x = x.view(x.size(0)*6,-1,128,160)
         x = self.efficientNet(x)
-        #x = x.view(x.size(0), 2, -1)
-        #mu = x[:, 0, :]
-        #logvar = x[:, 1, :]
-        #x = self.reparameterise(mu, logvar)
-        #x = self.fc1(x)
         x = x.view(batch_size, -1)
+        branch = x
         x = self.fc2(x)
-        x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
-        x = self.conv0(x)
-        x = self.deconv0(x)  # detection
-        x = self.conv1(x)
+        x = x.view(x.size(0),-1,25,25) #x = x.view(x.size(0)*6,-1,128,160)
+        x = self.deconv0(x)#detection
         x = self.deconv1(x)
-        x = self.conv2(x)
-        x = self.deconv2(x)  # resize conv conv resize conv conv
-        return nn.LogSoftmax(dim=1)(x)
+        x = self.deconv2(x)#resize conv conv resize conv conv
+        x1 = self.fc2_1(branch)
+        x1 = x1.view(x1.size(0),-1,25,25)
+        x1 = self.conv0_0(x1)
+        x1 = self.conv0_1(x1)
+        x1 = self.deconv0_1(x1)#detection
+        x1 = self.conv1_1(x1)
+        x1 = self.deconv1_1(x1)
+        output, total_loss = self.yolo1(x1, detection_target,800)
+        return [nn.LogSoftmax(dim=1)(x),output,total_loss]
 
 
-def trainModel():
-    return AutoNet()
+def trainModel(anchors,detection_classes=9):
+    return AutoNet(anchors,detection_classes)
