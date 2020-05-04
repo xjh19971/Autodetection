@@ -82,12 +82,13 @@ class AutoNet(nn.Module):
         self.deconv0 = self._make_deconv_layer(16, 16)
         self.inplanes = 16
         self.conv1 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv1 = self._make_deconv_layer(16, 16)
-        self.inplanes = 16
-        self.conv2 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv2 = self._make_deconv_layer(16, 16)
-        self.conv3 = self._make_layer(BasicBlock, 16, 2)
-        self.convfinal = nn.Conv2d(16, 2, 1)
+        self.deconv1 = self._make_deconv_layer(16, 8)
+        self.inplanes = 8
+        self.conv2 = self._make_layer(BasicBlock, 8, 2)
+        self.deconv2 = self._make_deconv_layer(8, 8)
+        self.inplanes = 8
+        self.conv3 = self._make_layer(BasicBlock, 8, 2)
+        self.convfinal = nn.Conv2d(8, 2, 1)
 
         self.inplanes = 256
         self.conv0_1 = self._make_layer(BasicBlock, 256, 2)
