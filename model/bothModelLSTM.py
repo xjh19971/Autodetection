@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import numpy as np
 from model.EfficientNetBackbone import EfficientNet
 from model.detectionModel import YOLOLayer
 
@@ -53,7 +53,7 @@ class AutoNet(nn.Module):
         self.num_classes = num_classes
         self.device = device
         self.anchors = anchors
-        self.anchors1= anchors[0]
+        self.anchors1= np.reshape(anchors[0],[1,2])
         self.anchors2= anchors[1:]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
