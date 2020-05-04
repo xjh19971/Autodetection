@@ -12,8 +12,7 @@ import torch.nn.functional as F
 from torchvision import transforms
 import torch.optim as optim
 from torch.optim import lr_scheduler
-
-from dataset.dataHelper import LabeledDataset
+from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn, draw_box, compute_ts_road_map
 import model.roadModel as roadModel
 import re
@@ -33,8 +32,8 @@ unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
-start_epoch = 300
-long_cycle = 60
+start_epoch = 150
+long_cycle = 30
 short_cycle = 5
 start_lr = 0.01
 pretrain_file = None
@@ -67,6 +66,8 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
         optimizer.zero_grad()
         # Pass data through model
         output = model(sample)
+        output = output.view(-1, 2, 200, 200)
+        road_image = road_image.view(-1, 200, 200)
         # Compute the negative log likelihood loss
         loss = nn.NLLLoss()(output, road_image)
         _, predicted = torch.max(output.data, 1)
@@ -100,6 +101,8 @@ def test(model, device, test_loader):
             sample, road_image = sample.to(device), road_image.to(device)
             # Pass data through model
             output = model(sample)
+            output = output.view(-1, 2, 200, 200)
+            road_image = road_image.view(-1, 200, 200)
             test_loss += nn.NLLLoss()(output, road_image)
             _, predicted = torch.max(output.data, 1)
             AUC += compute_ts_road_map(predicted, road_image)
@@ -125,19 +128,20 @@ if __name__ == '__main__':
         transforms.Resize((200, 200),0),
         transforms.ToTensor()
     ])
-    labeled_trainset = LabeledDataset(image_folder=image_folder,
+    labeled_trainset = LabeledDatasetScene(image_folder=image_folder,
                                       annotation_file=annotation_csv,
                                       scene_index=labeled_scene_index,
                                       transform=data_transforms,
                                       roadmap_transform=roadmap_transforms,
-                                      extra_info=True
+                                      extra_info=True,
+                                      scene_batch_size=8
                                       )
-    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.85* len(labeled_trainset)),
+    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90* len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
-                                                                             0.85 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
+                                                                             0.90 * len(labeled_trainset))])
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, num_workers=1,
                                               collate_fn=collate_fn)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=True, num_workers=1,
                                              collate_fn=collate_fn)
 
     model = roadModel.trainModel()
@@ -151,11 +155,10 @@ if __name__ == '__main__':
             para.requires_grad = False
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.01,weight_decay=1e-8)
-    #scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
-    #optimizer = torchcontrib.optim.SWA(optimizer)
+    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
-    for epoch in range(1, 400 + 1):
+    for epoch in range(1, 200 + 1):
         # Train model
         start_time = time.time()
         train(model, device, trainloader, optimizer, epoch)

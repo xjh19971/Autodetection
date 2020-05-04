@@ -3,7 +3,6 @@ import torch.utils.model_zoo as model_zoo
 from model.MobileNet import MobileNetV3
 import numpy as np
 from model.EfficientNetBackbone import EfficientNet
-from model.mypretrainModel import AutoPretrainNet
 import torch
 
 
@@ -126,15 +125,15 @@ class AutoNet(nn.Module):
         return mu
 
     def forward(self, x):
-        batch_size = x.size(0)
-        x = x.view(x.size(0) * 6, -1, 128, 160)
+        scene = x.size(0)
+        step = x.size(1)
+        x = x.view(-1, 3, 128, 160)
         x = self.efficientNet(x)
         #x = x.view(x.size(0), 2, -1)
         #mu = x[:, 0, :]
         #logvar = x[:, 1, :]
         #x = self.reparameterise(mu, logvar)
-        #x = self.fc1(x)
-        x = x.view(batch_size, -1)
+        x = x.view(scene*step, 6*self.fc_num)
         x = self.fc2(x)
         x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         x = self.conv0(x)
