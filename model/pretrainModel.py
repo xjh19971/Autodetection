@@ -95,7 +95,6 @@ class AutoPretrainNet(nn.Module):
             layers.append(
                 nn.ConvTranspose2d(inplanes, outplanes, 3, stride=2, padding=1,
                                    output_padding=1))
-            layers.append(nn.Sigmoid())
         return nn.Sequential(*layers)
 
     def reparameterise(self, mu, logvar):
