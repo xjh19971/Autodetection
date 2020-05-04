@@ -13,7 +13,7 @@ from torchvision import transforms
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from dataset.dataHelper import LabeledDatasetScene
-from utils.helper import collate_fn, draw_box, compute_ts_road_map
+from utils.helper import collate_fn_lstm, draw_box, compute_ts_road_map
 import model.roadModel as roadModel
 import re
 
@@ -140,9 +140,9 @@ if __name__ == '__main__':
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, num_workers=1,
-                                              collate_fn=collate_fn)
+                                              collate_fn=collate_fn_lstm)
     testloader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=True, num_workers=1,
-                                             collate_fn=collate_fn)
+                                             collate_fn=collate_fn_lstm)
 
     model = roadModel.trainModel()
     if pretrain_file is not None:
