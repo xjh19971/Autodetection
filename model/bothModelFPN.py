@@ -60,78 +60,77 @@ class AutoNet(nn.Module):
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3')
-        feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
         )
         self.fc1_1_1 = nn.Sequential(
             nn.Linear(384 * 8 * 10, self.fc_num1 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num1 * 3),
+            nn.GroupNorm(4,self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_1_2 = nn.Sequential(
             nn.Linear(136 * 16 * 20, self.fc_num1 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num1 * 3),
+            nn.GroupNorm(4,self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_1_3 = nn.Sequential(
             nn.Linear(48 * 32 * 40, self.fc_num1 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num1 * 3),
+            nn.GroupNorm(4,self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_1_1 = nn.Sequential(
             nn.Linear(self.fc_num1 * 6*3, 25 * 25 * 32, bias=False),
-            nn.BatchNorm1d(25 * 25 * 32),
+            nn.GroupNorm(4,25 * 25 * 32),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_1_2 = nn.Sequential(
             nn.Linear(self.fc_num1 * 6 *3, 50 * 50 * 8, bias=False),
-            nn.BatchNorm1d(50 * 50 * 8),
+            nn.GroupNorm(4,50 * 50 * 8),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_1_3 = nn.Sequential(
             nn.Linear(self.fc_num1 * 6 *3, 100 * 100 * 2, bias=False),
-            nn.BatchNorm1d(100 * 100 * 2),
+            nn.GroupNorm(4,100 * 100 * 2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_2_1 = nn.Sequential(
             nn.Linear(384 * 8 * 10, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
+            nn.GroupNorm(4,self.fc_num2 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_2_2 = nn.Sequential(
             nn.Linear(136 * 16 * 20, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
+            nn.GroupNorm(4,self.fc_num2 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_2_3 = nn.Sequential(
             nn.Linear(48 * 32 * 40, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
+            nn.GroupNorm(4,self.fc_num2 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_2_1 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6*3, 25 * 25 * 128, bias=False),
-            nn.BatchNorm1d(25 * 25 * 128),
+            nn.GroupNorm(4,25 * 25 * 128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_2_2 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6*3, 50 * 50 * 32, bias=False),
-            nn.BatchNorm1d(50 * 50 * 32),
+            nn.GroupNorm(4,50 * 50 * 32),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_2_3 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6*3, 100 * 100 * 8, bias=False),
-            nn.BatchNorm1d(100 * 100 * 8),
+            nn.GroupNorm(4,100 * 100 * 8),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
