@@ -46,8 +46,8 @@ class BasicBlock(nn.Module):
 
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2):
-        self.fc_num1 = 100
-        self.fc_num2 = 150
+        self.fc_num1 = 120
+        self.fc_num2 = 100
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
@@ -70,20 +70,20 @@ class AutoNet(nn.Module):
         )
         self.fc1_1_2 = nn.Sequential(
             nn.Linear(136 * 8 * 10, self.fc_num1, bias=False),
-            nn.BatchNorm1d(self.fc_num1),
+            nn.GroupNorm(4, self.fc_num1),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         '''
         self.fc1_1_3 = nn.Sequential(
             nn.Linear(48 * 16 * 20, self.fc_num1, bias=False),
-            nn.BatchNorm1d(self.fc_num1),
+            nn.GroupNorm(4, self.fc_num1),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         '''
         self.fc2_1_1 = nn.Sequential(
-            nn.Linear(self.fc_num1 * 6*3 , 25 * 25 * 32, bias=False),
+            nn.Linear(self.fc_num1 * 6 * 2, 25 * 25 * 32, bias=False),
             nn.GroupNorm(4, 25 * 25 * 32),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
@@ -109,19 +109,19 @@ class AutoNet(nn.Module):
         )
         '''
         self.fc2_2_1 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6 * 3, 25 * 25 * 128, bias=False),
+            nn.Linear(self.fc_num2 * 6 * 2, 25 * 25 * 128, bias=False),
             nn.GroupNorm(4, 25 * 25 * 128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_2_2 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6 * 3, 50 * 50 * 32, bias=False),
+            nn.Linear(self.fc_num2 * 6 * 2, 50 * 50 * 32, bias=False),
             nn.GroupNorm(4, 50 * 50 * 32),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_2_3 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6 * 3, 100 * 100 * 8, bias=False),
+            nn.Linear(self.fc_num2 * 6 * 2, 100 * 100 * 8, bias=False),
             nn.GroupNorm(4, 100 * 100 * 8),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
@@ -195,17 +195,17 @@ class AutoNet(nn.Module):
         output_list = self.efficientNet(x)
         feature1 = output_list[2].view(output_list[2].size(0), -1)
         feature2 = output_list[1].view(output_list[1].size(0), -1)
-        #feature3 = output_list[0].view(output_list[0].size(0), -1)
+        # feature3 = output_list[0].view(output_list[0].size(0), -1)
         featurefc1_1 = self.fc1_1_1(feature1)
         featurefc1_2 = self.fc1_2_1(feature1)
         featurefc2_1 = self.fc1_1_2(feature2)
         featurefc2_2 = self.fc1_2_2(feature2)
-        #featurefc3_1 = self.fc1_1_3(feature3)
-        #featurefc3_2 = self.fc1_2_3(feature3)
+        # featurefc3_1 = self.fc1_1_3(feature3)
+        # featurefc3_2 = self.fc1_2_3(feature3)
 
         x1 = torch.cat([featurefc1_1, featurefc2_1],
                        dim=1)
-        x1 = x1.view(-1, self.fc_num1 * 6 * 3)
+        x1 = x1.view(-1, self.fc_num1 * 6 * 2)
         x1 = self.fc2_1_1(x1)
         x1 = x1.view(x1.size(0), -1, 25, 25)
         x1 = self.conv0(x1)
@@ -220,7 +220,7 @@ class AutoNet(nn.Module):
 
         x2 = torch.cat([featurefc1_2[:, :self.fc_num2], featurefc2_2[:, :self.fc_num2]],
                        dim=1)
-        x2 = x2.view(-1, self.fc_num2 * 6 * 3)
+        x2 = x2.view(-1, self.fc_num2 * 6 * 2)
         x2 = self.fc2_2_1(x2)
         x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         detect_output0 = self.conv0_1_detect(x2)
@@ -231,7 +231,7 @@ class AutoNet(nn.Module):
 
         x2_1 = torch.cat(
             [featurefc1_2[:, self.fc_num2:self.fc_num2 * 2], featurefc2_2[:, self.fc_num2:self.fc_num2 * 2]], dim=1)
-        x2_1 = x2_1.view(-1, self.fc_num2 * 6 * 3)
+        x2_1 = x2_1.view(-1, self.fc_num2 * 6 * 2)
         x2_1 = self.fc2_2_2(x2_1)
         x2_1 = x2_1.view(x2_1.size(0), -1, 50, 50)
         x2 = torch.cat([x2, x2_1], dim=1)
@@ -242,8 +242,9 @@ class AutoNet(nn.Module):
         x2 = self.deconv1_1(x2)
 
         x2_2 = torch.cat(
-            [featurefc1_2[:, self.fc_num2 * 2:self.fc_num2 * 3], featurefc2_2[:, self.fc_num2 * 2:self.fc_num2 * 3]], dim=1)
-        x2_2 = x2_2.view(-1, self.fc_num2 * 6 * 3)
+            [featurefc1_2[:, self.fc_num2 * 2:self.fc_num2 * 3], featurefc2_2[:, self.fc_num2 * 2:self.fc_num2 * 3]],
+            dim=1)
+        x2_2 = x2_2.view(-1, self.fc_num2 * 6 * 2)
         x2_2 = self.fc2_2_3(x2_2)
         x2_2 = x2_2.view(x2_2.size(0), -1, 100, 100)
         x2 = torch.cat([x2, x2_2], dim=1)
