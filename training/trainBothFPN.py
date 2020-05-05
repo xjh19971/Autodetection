@@ -90,14 +90,18 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
                 'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
                     epoch, batch_idx * len(sample), len(train_loader.dataset),
                            100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(),
-                    AUC, (model.yolo1.metrics['precision'] + model.yolo2.metrics['precision']) / 2,
-                           (model.yolo1.metrics['recall50'] + model.yolo2.metrics['recall50']) / 2))
+                    AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics[
+                        'precision']) / 3,
+                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] + model.yolo2.metrics[
+                               'recall50']) / 3))
     print(
         'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
             epoch, batch_idx * len(sample), len(train_loader.dataset),
-                   100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), AUC,
-                   (model.yolo1.metrics['precision'] + model.yolo2.metrics['precision']) / 2,
-                   (model.yolo1.metrics['recall50'] + model.yolo2.metrics['recall50']) / 2))
+                   100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), (
+                               model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] +
+                               model.yolo2.metrics['precision']) / 3,
+                   (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] + model.yolo2.metrics[
+                       'recall50']) / 3))
 
 
 def test(model, device, test_loader):
@@ -126,8 +130,10 @@ def test(model, device, test_loader):
             road_image = road_image.view(-1, 200, 200)
             _, predicted = torch.max(output0.data, 1)
             AUC += compute_ts_road_map(predicted, road_image)
-            P += (model.yolo1.metrics['precision'] + model.yolo2.metrics['precision']) / 2
-            R += (model.yolo1.metrics['recall50'] + model.yolo2.metrics['recall50']) / 2
+            P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics[
+                'precision']) / 3
+            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] + model.yolo2.metrics[
+                'recall50']) / 3
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
@@ -164,9 +170,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True, num_workers=4,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=True, num_workers=4,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
@@ -177,7 +183,7 @@ if __name__ == '__main__':
         model_dict = model.state_dict()
         pretrain_dict = {k: v for k, v in pretrain_dict.items() if
                          (k in model_dict and re.search('^efficientNet.*', k) and (not re.search('^efficientNet._fc.*',
-                                                                                           k)))}
+                                                                                                 k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
         for para in model.efficientNet.parameters():
@@ -194,7 +200,6 @@ if __name__ == '__main__':
         test_loss = test(model, device, testloader)
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
-        torch.save(model.state_dict(), 'bothModelFPNpre.pkl')
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'bothModelFPNpreval.pkl')
             last_test_loss = test_loss
