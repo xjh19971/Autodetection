@@ -66,7 +66,7 @@ def collate_fn_lstm(batch):
 def collate_fn_unlabeled(batch):
     concated_input=[]
     for i in range(len(batch)):
-        concated_input.append(torch.reshape(batch[i],(1,18,128,160)))
+        concated_input.append(torch.reshape(batch[i],(1,18,256,320)))
     concated_input=torch.cat(concated_input,0)
     return [concated_input,concated_input]
 
