@@ -66,61 +66,61 @@ class AutoNet(nn.Module):
             nn.Linear(384 * 4 * 5, self.fc_num1, bias=False),
             nn.GroupNorm(4, self.fc_num1),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc1_1_2 = nn.Sequential(
             nn.Linear(136 * 8 * 10, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc1_1_3 = nn.Sequential(
             nn.Linear(48 * 16 * 20, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc2_1_1 = nn.Sequential(
             nn.Linear(self.fc_num1 * 6*3 , 25 * 25 * 32, bias=False),
             nn.GroupNorm(4, 25 * 25 * 32),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc1_2_1 = nn.Sequential(
             nn.Linear(384 * 4 * 5, self.fc_num2 * 3, bias=False),
             nn.GroupNorm(4, self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc1_2_2 = nn.Sequential(
             nn.Linear(136 * 8 * 10, self.fc_num2 * 3, bias=False),
             nn.GroupNorm(4, self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc1_2_3 = nn.Sequential(
             nn.Linear(48 * 16 * 20, self.fc_num2 * 3, bias=False),
             nn.GroupNorm(4, self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc2_2_1 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6 * 3, 25 * 25 * 128, bias=False),
             nn.GroupNorm(4, 25 * 25 * 128),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc2_2_2 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6 * 3, 50 * 50 * 32, bias=False),
             nn.GroupNorm(4, 50 * 50 * 32),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc2_2_3 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6 * 3, 100 * 100 * 8, bias=False),
             nn.GroupNorm(4, 100 * 100 * 8),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25,inplace=True),
+            nn.Dropout(0.25),
         )
         self.inplanes = 32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
