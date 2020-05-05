@@ -97,9 +97,9 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
     print(
         'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
             epoch, batch_idx * len(sample), len(train_loader.dataset),
-                   100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), (
-                               model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] +
-                               model.yolo2.metrics['precision']) / 3,
+                   100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), AUC, (
+                           model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] +
+                           model.yolo2.metrics['precision']) / 3,
                    (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] + model.yolo2.metrics[
                        'recall50']) / 3))
 
