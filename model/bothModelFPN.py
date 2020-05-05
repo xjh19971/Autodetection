@@ -63,19 +63,19 @@ class AutoNet(nn.Module):
         self.efficientNet._fc = nn.Sequential(
         )
         self.fc1_1_1 = nn.Sequential(
-            nn.Linear(384 * 8 * 10, self.fc_num1 * 3, bias=False),
+            nn.Linear(384 * 4* 5, self.fc_num1 * 3, bias=False),
             nn.GroupNorm(4,self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_1_2 = nn.Sequential(
-            nn.Linear(136 * 16 * 20, self.fc_num1 * 3, bias=False),
+            nn.Linear(136 * 8 * 10, self.fc_num1 * 3, bias=False),
             nn.GroupNorm(4,self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_1_3 = nn.Sequential(
-            nn.Linear(48 * 32 * 40, self.fc_num1 * 3, bias=False),
+            nn.Linear(48 * 16 * 20, self.fc_num1 * 3, bias=False),
             nn.GroupNorm(4,self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
@@ -99,19 +99,19 @@ class AutoNet(nn.Module):
             nn.Dropout(0.25),
         )
         self.fc1_2_1 = nn.Sequential(
-            nn.Linear(384 * 8 * 10, self.fc_num2 * 3, bias=False),
+            nn.Linear(384 * 4 * 5, self.fc_num2 * 3, bias=False),
             nn.GroupNorm(4,self.fc_num2 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_2_2 = nn.Sequential(
-            nn.Linear(136 * 16 * 20, self.fc_num2 * 3, bias=False),
+            nn.Linear(136 * 8 * 10, self.fc_num2 * 3, bias=False),
             nn.GroupNorm(4,self.fc_num2 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_2_3 = nn.Sequential(
-            nn.Linear(48 * 32 * 40, self.fc_num2 * 3, bias=False),
+            nn.Linear(48 * 16 * 20, self.fc_num2 * 3, bias=False),
             nn.GroupNorm(4,self.fc_num2 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
