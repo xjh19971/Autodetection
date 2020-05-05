@@ -109,7 +109,7 @@ class AutoPretrainNet(nn.Module):
     def forward(self, x):
         batch_size = x.size(0)
         x = x.view(x.size(0) * 6, -1, 128, 160)
-        x = self.efficientNet(x)
+        x = self.efficientNet(x,pretrain=True)
         x = x.view(x.size(0), 2, -1)
         mu = x[:, 0, :]
         logvar = x[:, 1, :]

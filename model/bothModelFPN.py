@@ -59,7 +59,7 @@ class AutoNet(nn.Module):
         self.anchors0 = anchors[5:,:]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
+        self.efficientNet = EfficientNet.from_name('efficientnet-b3')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),

@@ -194,7 +194,7 @@ class EfficientNet(nn.Module):
             if drop_connect_rate:
                 drop_connect_rate *= float(idx) / len(self._blocks)
             x = block(x, drop_connect_rate=drop_connect_rate)
-            if idx==9 or idx==21 or idx ==31:
+            if idx==7 or idx==17 or idx ==25:
                 real_output.append(x)
         x = self._swish(self._bn1(self._conv_head(x)))
         real_output.append(x)
