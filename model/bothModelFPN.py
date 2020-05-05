@@ -47,15 +47,16 @@ class BasicBlock(nn.Module):
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2):
         self.latent = 1000
-        self.fc_num = 400
+        self.fc_num = 300
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
         self.num_classes = num_classes
         self.device = device
         self.anchors = anchors
-        self.anchors1 = np.reshape(anchors[0], [1, 2])
-        self.anchors2 = anchors[1:]
+        self.anchors2 = np.reshape(anchors[0], [1, 2])
+        self.anchors1 = anchors[1:5,:]
+        self.anchors0 = anchors[5:,:]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b4')
@@ -64,14 +65,38 @@ class AutoNet(nn.Module):
             nn.Linear(in_features=feature, out_features=2 * self.latent),
             # nn.Dropout(p=0.4)
         )
-        self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
+        # self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
+        self.fc1 = nn.Sequential(
+            nn.Linear(self.latent, self.fc_num, bias=False),
+            nn.BatchNorm1d(self.fc_num),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
-        self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
+        # self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
+        self.fc1_1 = nn.Sequential(
+            nn.Linear(488*4*5, self.fc_num, bias=False),
+            nn.BatchNorm1d(self.fc_num),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
+        self.fc1_2 = nn.Sequential(
+            nn.Linear(160*8*10, self.fc_num, bias=False),
+            nn.BatchNorm1d(self.fc_num),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
+        self.fc1_3 = nn.Sequential(
+            nn.Linear(56*16*20, self.fc_num, bias=False),
+            nn.BatchNorm1d(self.fc_num),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
         self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 128, bias=False),
             nn.BatchNorm1d(25 * 25 * 128),
@@ -91,18 +116,24 @@ class AutoNet(nn.Module):
         self.convfinal = nn.Conv2d(2, 2, 1)
 
         self.inplanes = 128
+        self.conv0_1_detect = self._make_layer(BasicBlock, 128, 2)
+        self.convfinal_0 = nn.Conv2d(128, len(self.anchors2) * (self.detection_classes + 5), 1)
+        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, self.device, 800)
         self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
-        self.deconv0_1 = self._make_deconv_layer(128, 128)
-        self.inplanes = 128
-        self.conv1_1_detect = self._make_layer(BasicBlock, 128, 2)
-        self.convfinal_1 = nn.Conv2d(128, len(self.anchors2) * (self.detection_classes + 5), 1)
-        self.yolo1 = YOLOLayer(self.anchors2, self.detection_classes, self.device, 800)
-        self.conv1_1 = self._make_layer(BasicBlock, 128, 2)
-        self.deconv1_1 = self._make_deconv_layer(128, 64)
+        self.deconv0_1 = self._make_deconv_layer(128, 64)
+        self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
+
         self.inplanes = 64
-        self.conv2_1_detect = self._make_layer(BasicBlock, 64, 2)
-        self.convfinal_2 = nn.Conv2d(64, len(self.anchors1) * (self.detection_classes + 5), 1)
-        self.yolo2 = YOLOLayer(self.anchors1, self.detection_classes, self.device, 800)
+        self.conv1_1_detect = self._make_layer(BasicBlock, 64, 2)
+        self.convfinal_1 = nn.Conv2d(64, len(self.anchors2) * (self.detection_classes + 5), 1)
+        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, self.device, 800)
+        self.conv1_1 = self._make_layer(BasicBlock, 64, 2)
+        self.deconv1_1 = self._make_deconv_layer(64, 16)
+
+        self.inplanes = 16
+        self.conv2_1_detect = self._make_layer(BasicBlock, 16, 2)
+        self.convfinal_2 = nn.Conv2d(16, len(self.anchors1) * (self.detection_classes + 5), 1)
+        self.yolo2 = YOLOLayer(self.anchors2, self.detection_classes, self.device, 800)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -167,18 +198,20 @@ class AutoNet(nn.Module):
         scene = x.size(0)
         step = x.size(1)
         x = x.view(-1, 3, 128, 160)
-        x = self.efficientNet(x)
-        x = x.view(x.size(0), 2, -1)
-        mu = x[:, 0, :]
-        logvar = x[:, 1, :]
-        x = self.reparameterise(mu, logvar)
-        x = x.view(scene, step, 6, self.latent)
-        x = x.transpose(1, 2).contiguous()
-        x = x.view(-1, step, self.latent)
+        output_list = self.efficientNet(x)
+        x1 = output_list[3]
+        x1 = x1.view(x1.size(0), 2, -1)
+        mu = x1[:, 0, :]
+        logvar = x1[:, 1, :]
+        x1 = self.reparameterise(mu, logvar)
+        x2 = output_list[2]
+        # x = x.view(scene, step, 6, self.latent)
+        # x = x.transpose(1, 2).contiguous()
+        # x = x.view(-1, step, self.latent)
 
-        x1 = self.batch_lstm(x, scene, step, 1)
-        #x1 = self.fc1(x)
-        #x1 = x1.view(-1, self.fc_num * 6)
+        # x1 = self.batch_lstm(x, scene, step, 1)
+        x1 = self.fc1(x1)
+        x1 = x1.view(-1, self.fc_num * 6)
         x1 = self.fc2(x1)
         x1 = x1.view(x1.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         x1 = self.conv0(x1)
@@ -189,11 +222,14 @@ class AutoNet(nn.Module):
         x1 = self.deconv2(x1)  # resize conv conv resize conv conv)
         x1 = self.convfinal(x1)
 
-        x2 = self.batch_lstm(x, scene, step, 2)
-        #x2 = self.fc1_1(x)
-        #x2 = x2.view(-1, self.fc_num * 6)
+        # x2 = self.batch_lstm(x, scene, step, 2)
+        x2 = self.fc1_1(x)
+        x2 = x2.view(-1, self.fc_num * 6)
         x2 = self.fc2_1(x2)
         x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+        detect_output0 = self.conv0_1_detect(x2)
+        detect_output0 = self.convfinal_0(detect_output0)
+        detect_output0, detect_loss0 = self.yolo1(detect_output0, detection_target, 800)
         x2 = self.conv0_1(x2)
         x2 = self.deconv0_1(x2)  # detection
         detect_output1 = self.conv1_1_detect(x2)
@@ -204,8 +240,8 @@ class AutoNet(nn.Module):
         detect_output2 = self.conv2_1_detect(x2)
         detect_output2 = self.convfinal_2(detect_output2)
         detect_output2, detect_loss2 = self.yolo2(detect_output2, detection_target, 800)
-        total_loss = 0.9 * detect_loss1 + 0.1 * detect_loss2
-        return nn.LogSoftmax(dim=1)(x1), detect_output1, detect_output2, total_loss
+        total_loss = 0.45*detect_loss0 + 0.3 * detect_loss1 + 0.3 * detect_loss2
+        return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, detect_output2, total_loss
 
 
 def trainModel(device, anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4):

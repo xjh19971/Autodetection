@@ -46,7 +46,7 @@ class AutoPretrainNet(nn.Module):
         self.latent = 1000
         self.num_classes = num_classes
         super(AutoPretrainNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
+        self.efficientNet = EfficientNet.from_name('efficientnet-b3')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
