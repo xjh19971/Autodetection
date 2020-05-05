@@ -46,9 +46,8 @@ class BasicBlock(nn.Module):
 
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2):
-        self.latent = 1000
-        self.fc_num1 = 300
-        self.fc_num2 = 100
+        self.fc_num1 = 400
+        self.fc_num2 = 150
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
@@ -68,14 +67,12 @@ class AutoNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.25)
         )
-        # self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc2 = nn.Sequential(
-            nn.Linear(self.fc_num1 * 6, 25 * 25 * 16, bias=False),
+            nn.Linear(self.fc_num1 * 6, 25 * 25 * 32, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
-        # self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc1_1_1 = nn.Sequential(
             nn.Linear(384 * 4 * 5, self.fc_num2, bias=False),
             nn.BatchNorm1d(self.fc_num2),
@@ -148,17 +145,17 @@ class AutoNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
+        self.inplanes = 32
+        self.conv0 = self._make_layer(BasicBlock, 32, 2)
+        self.deconv0 = self._make_deconv_layer(32, 16)
         self.inplanes = 16
-        self.conv0 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv0 = self._make_deconv_layer(16, 8)
+        self.conv1 = self._make_layer(BasicBlock, 16, 2)
+        self.deconv1 = self._make_deconv_layer(16, 8)
         self.inplanes = 8
-        self.conv1 = self._make_layer(BasicBlock, 8, 2)
-        self.deconv1 = self._make_deconv_layer(8, 4)
-        self.inplanes = 4
-        self.conv2 = self._make_layer(BasicBlock, 4, 2)
-        self.deconv2 = self._make_deconv_layer(4, 2)
+        self.conv2 = self._make_layer(BasicBlock, 8, 2)
+        self.deconv2 = self._make_deconv_layer(8, 4)
         self.inplanes = 2
-        self.convfinal = nn.Conv2d(2, 2, 1)
+        self.convfinal = nn.Conv2d(4, 2, 1)
 
         self.inplanes = 128
         self.conv0_1_detect = self._make_layer(BasicBlock, 128, 2)
@@ -229,10 +226,13 @@ class AutoNet(nn.Module):
         x1 = self.deconv2(x1)  # resize conv conv resize conv conv)
         x1 = self.convfinal(x1)
 
+        feature0=output_list[2].view(output_list[2].size(0), -1)
+        feature1=output_list[1].view(output_list[1].size(0), -1)
+        feature2=output_list[0].view(output_list[0].size(0), -1)
         # x2 = self.batch_lstm(x, scene, step, 2)
-        x2 = torch.cat([self.fc1_1_1(output_list[2].view(output_list[2].size(0), -1)),
-                        self.fc1_1_2(output_list[1].view(output_list[1].size(0), -1)),
-                        self.fc1_1_3(output_list[0].view(output_list[0].size(0), -1))], dim=1)
+        x2 = torch.cat([self.fc1_1_1(feature0),
+                        self.fc1_1_2(feature1),
+                        self.fc1_1_3(feature2)], dim=1)
         x2 = x2.view(-1, self.fc_num2 * 6)
         x2 = self.fc2_1(x2)
         x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
@@ -242,9 +242,9 @@ class AutoNet(nn.Module):
         x2 = self.conv0_1(x2)
         x2 = self.deconv0_1(x2)  # detection
 
-        x2_1 = torch.cat([self.fc1_2_1(output_list[2].view(output_list[2].size(0), -1)),
-                        self.fc1_2_2(output_list[1].view(output_list[1].size(0), -1)),
-                        self.fc1_2_3(output_list[0].view(output_list[0].size(0), -1))], dim=1)
+        x2_1 = torch.cat([self.fc1_2_1(feature0),
+                          self.fc1_2_2(feature1),
+                          self.fc1_2_3(feature2)], dim=1)
         x2_1 = x2_1.view(-1, self.fc_num2 * 6)
         x2_1 = self.fc2_2(x2_1)
         x2_1 = x2_1.view(x2_1.size(0), -1, 50, 50)
@@ -255,9 +255,9 @@ class AutoNet(nn.Module):
         x2 = self.conv1_1(x2)
         x2 = self.deconv1_1(x2)
 
-        x2_2 = torch.cat([self.fc1_3_1(output_list[2].view(output_list[2].size(0), -1)),
-                        self.fc1_3_2(output_list[1].view(output_list[1].size(0), -1)),
-                        self.fc1_3_3(output_list[0].view(output_list[0].size(0), -1))], dim=1)
+        x2_2 = torch.cat([self.fc1_3_1(feature0),
+                          self.fc1_3_2(feature1),
+                          self.fc1_3_3(feature2)], dim=1)
         x2_2 = x2_2.view(-1, self.fc_num2 * 6)
         x2_2 = self.fc2_3(x2_2)
         x2_2 = x2_2.view(x2_2.size(0), -1, 100, 100)
