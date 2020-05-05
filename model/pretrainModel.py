@@ -53,8 +53,8 @@ class AutoPretrainNet(nn.Module):
             # nn.Dropout(p=0.4)
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(1000, 4 * 5 * 256),
-            nn.BatchNorm1d(4 * 5 * 256),
+            nn.Linear(1000, 8 * 10 * 256),
+            nn.BatchNorm1d(8 * 10 * 256),
             nn.ReLU(inplace=True)
         )
         self.deconv0 = self._make_deconv_layer(256, 128)
@@ -115,7 +115,7 @@ class AutoPretrainNet(nn.Module):
         logvar = x[:, 1, :]
         x = self.reparameterise(mu, logvar)
         x = self.fc2(x)
-        x = x.reshape(x.size(0), -1, 4, 5)
+        x = x.reshape(x.size(0), -1, 8, 10)
         x = self.deconv0(x)  # detection
         x = self.conv0(x)
         x = self.deconv1(x)
