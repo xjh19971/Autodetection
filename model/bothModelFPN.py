@@ -48,7 +48,7 @@ class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2):
         self.latent = 1000
         self.fc_num1 = 300
-        self.fc_num2 = 300
+        self.fc_num2 = 150
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
@@ -56,8 +56,8 @@ class AutoNet(nn.Module):
         self.device = device
         self.anchors = anchors
         self.anchors2 = np.reshape(anchors[0], [1, 2])
-        self.anchors1 = anchors[1:5,:]
-        self.anchors0 = anchors[5:,:]
+        self.anchors1 = anchors[1:5, :]
+        self.anchors0 = anchors[5:, :]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3')
@@ -71,50 +71,44 @@ class AutoNet(nn.Module):
             nn.Linear(self.latent, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num1 * 6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         # self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc1_1 = nn.Sequential(
-            nn.Linear(384*4*5, self.fc_num2, bias=False),
-            nn.BatchNorm1d(self.fc_num1),
+            nn.Linear(384 * 4 * 5, self.fc_num2 * 3, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc1_2 = nn.Sequential(
-            nn.Linear(384*4*5, self.fc_num2, bias=False),
-            nn.BatchNorm1d(self.fc_num1),
+            nn.Linear(136 * 8 * 10, self.fc_num2 * 3, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-        )
-        self.fc1_3 = nn.Sequential(
-            nn.Linear(136*8*10, self.fc_num2, bias=False),
-            nn.BatchNorm1d(self.fc_num1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc2_1 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6, 25 * 25 * 128, bias=False),
+            nn.Linear(self.fc_num2 * 6 * 2, 25 * 25 * 128, bias=False),
             nn.BatchNorm1d(25 * 25 * 128),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc2_2 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6, 50 * 50 * 32, bias=False),
+            nn.Linear(self.fc_num2 * 6 * 2, 50 * 50 * 32, bias=False),
             nn.BatchNorm1d(50 * 50 * 32),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc2_3 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6, 100 * 100 * 8, bias=False),
+            nn.Linear(self.fc_num2 * 6 * 2, 100 * 100 * 8, bias=False),
             nn.BatchNorm1d(100 * 100 * 8),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.inplanes = 16
         self.conv0 = self._make_layer(BasicBlock, 16, 2)
@@ -217,7 +211,6 @@ class AutoNet(nn.Module):
         mu = x1[:, 0, :]
         logvar = x1[:, 1, :]
         x1 = self.reparameterise(mu, logvar)
-        x2 = output_list[2]
         # x = x.view(scene, step, 6, self.latent)
         # x = x.transpose(1, 2).contiguous()
         # x = x.view(-1, step, self.latent)
@@ -236,9 +229,10 @@ class AutoNet(nn.Module):
         x1 = self.convfinal(x1)
 
         # x2 = self.batch_lstm(x, scene, step, 2)
-        x2 = x2.view(x2.size(0),-1)
-        x2 = self.fc1_1(x2)
-        x2 = x2.view(-1, self.fc_num2 * 6)
+        feature0 = self.fc1_1(output_list[2].view(output_list[2].size(0), -1))
+        feature1 = self.fc1_2(output_list[1].view(output_list[1].size(0), -1))
+        x2 = torch.cat([feature0[:, :self.fc_num2], feature1[:, :self.fc_num2]], dim=1)
+        x2 = x2.view(-1, self.fc_num2 * 6 * 2)
         x2 = self.fc2_1(x2)
         x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         detect_output0 = self.conv0_1_detect(x2)
@@ -247,28 +241,28 @@ class AutoNet(nn.Module):
         x2 = self.conv0_1(x2)
         x2 = self.deconv0_1(x2)  # detection
 
-        x2_1=output_list[2].view(output_list[2].size(0),-1)
-        x2_1=self.fc1_2(x2_1)
-        x2_1 = x2_1.view(-1, self.fc_num2 * 6)
+        x2_1 = torch.cat([feature0[:, self.fc_num2:self.fc_num2 * 2], feature1[:, self.fc_num2:self.fc_num2 * 2]],
+                         dim=1)
+        x2_1 = x2_1.view(-1, self.fc_num2 * 6 * 2)
         x2_1 = self.fc2_2(x2_1)
         x2_1 = x2_1.view(x2_1.size(0), -1, 50, 50)  #
-        x2 = torch.cat([x2,x2_1],dim=1)
+        x2 = torch.cat([x2, x2_1], dim=1)
         detect_output1 = self.conv1_1_detect(x2)
         detect_output1 = self.convfinal_1(detect_output1)
         detect_output1, detect_loss1 = self.yolo1(detect_output1, detection_target, 800)
         x2 = self.conv1_1(x2)
         x2 = self.deconv1_1(x2)
 
-        x2_2=output_list[1].view(output_list[1].size(0),-1)
-        x2_2 = self.fc1_3(x2_2)
-        x2_2 = x2_2.view(-1, self.fc_num2 * 6)
+        x2_2 = torch.cat(
+            [feature0[:, self.fc_num2 * 2:self.fc_num2 * 3], feature1[:, self.fc_num2 * 2:self.fc_num2 * 3]], dim=1)
+        x2_2 = x2_2.view(-1, self.fc_num2 * 6 * 2)
         x2_2 = self.fc2_3(x2_2)
         x2_2 = x2_2.view(x2_2.size(0), -1, 100, 100)  #
         x2 = torch.cat([x2, x2_2], dim=1)
         detect_output2 = self.conv2_1_detect(x2)
         detect_output2 = self.convfinal_2(detect_output2)
         detect_output2, detect_loss2 = self.yolo2(detect_output2, detection_target, 800)
-        total_loss = 0.4*detect_loss0 + 0.3 * detect_loss1 + 0.3 * detect_loss2
+        total_loss = 0.4 * detect_loss0 + 0.3 * detect_loss1 + 0.3 * detect_loss2
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, detect_output2, total_loss
 
 
