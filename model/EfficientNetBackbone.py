@@ -185,7 +185,7 @@ class EfficientNet(nn.Module):
         """ Returns output of the final convolution layer """
 
         # Stem
-        real_output=[]
+        real_output = []
         x = self._swish(self._bn0(self._conv_stem(inputs)))
 
         # Blocks
@@ -194,7 +194,7 @@ class EfficientNet(nn.Module):
             if drop_connect_rate:
                 drop_connect_rate *= float(idx) / len(self._blocks)
             x = block(x, drop_connect_rate=drop_connect_rate)
-            if idx==7 or idx==17 or idx ==25:
+            if idx == 7 or idx == 17 or idx == 25:
                 real_output.append(x)
         x = self._swish(self._bn1(self._conv_head(x)))
         real_output.append(x)
@@ -214,14 +214,7 @@ class EfficientNet(nn.Module):
             x = self._fc(x)
         else:
             output = self.extract_features_FPN(inputs)
-            x=output[3]
-            # Pooling and final linear layer
-            x = self._avg_pooling(x)
-            x = x.view(bs, -1)
-            x = self._dropout(x)
-            x = self._fc(x)
-            output[3]=x
-            x= output
+            x = output
         return x
 
     @classmethod
