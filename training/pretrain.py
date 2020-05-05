@@ -111,7 +111,7 @@ if __name__ == '__main__':
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(degrees=30),
         transforms.Pad((7, 0)),
-        #transforms.Resize((128, 160), 0),
+        transforms.Resize((128, 160), 0),
         transforms.ToTensor()
     ])
     unlabeled_trainset = UnlabeledDataset(image_folder=image_folder,
@@ -122,9 +122,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(unlabeled_trainset, [int(0.95 * len(unlabeled_trainset)),
                                                                            len(unlabeled_trainset) - int(
                                                                                0.95 * len(unlabeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=0,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=0,
                                               collate_fn=collate_fn_unlabeled)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=0,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=0,
                                              collate_fn=collate_fn_unlabeled)
 
     # sample, target, road_image, extra = iter(trainloader).next()

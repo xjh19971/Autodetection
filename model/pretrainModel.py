@@ -53,8 +53,8 @@ class AutoPretrainNet(nn.Module):
             # nn.Dropout(p=0.4)
         )
         self.fc2 = nn.Sequential(
-            nn.Linear(1000, 8 * 10 * 256),
-            nn.BatchNorm1d(8 * 10 * 256),
+            nn.Linear(1000, 4 * 5 * 256),
+            nn.BatchNorm1d(4 * 5 * 256),
             nn.ReLU(inplace=True)
         )
         self.deconv0 = self._make_deconv_layer(256, 128)
@@ -108,7 +108,7 @@ class AutoPretrainNet(nn.Module):
 
     def forward(self, x):
         batch_size = x.size(0)
-        x = x.view(x.size(0) * 6, -1, 256, 320)
+        x = x.view(x.size(0) * 6, -1, 128, 160)
         x = self.efficientNet(x,pretrain=True)
         x = x.view(x.size(0), 2, -1)
         mu = x[:, 0, :]
@@ -124,7 +124,7 @@ class AutoPretrainNet(nn.Module):
         x = self.conv2(x)
         x = self.deconv3(x)
         x = self.upSample(x)
-        x = x.view(batch_size, -1, 256, 320)
+        x = x.view(batch_size, -1, 128, 160)
         return nn.Sigmoid()(x), mu, logvar
 
 

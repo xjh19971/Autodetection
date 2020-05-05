@@ -199,7 +199,7 @@ class AutoNet(nn.Module):
         # (S,B,18,H,W)
         scene = x.size(0)
         step = x.size(1)
-        x = x.view(-1, 3, 256, 320)
+        x = x.view(-1, 3, 128,160)
         output_list = self.efficientNet(x)
         feature1 = output_list[2].view(output_list[2].size(0), -1)
         feature2 = output_list[1].view(output_list[1].size(0), -1)
