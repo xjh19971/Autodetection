@@ -28,12 +28,12 @@ unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
-start_epoch = 300
-long_cycle = 60
+start_epoch = 200
+long_cycle = 40
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
-pretrain_file = None
+pretrain_file = 'pretrain3.pkl'
 
 
 def get_anchors(anchors_path):
@@ -159,14 +159,14 @@ if __name__ == '__main__':
                                            transform=data_transforms,
                                            roadmap_transform=roadmap_transforms,
                                            extra_info=False,
-                                           scene_batch_size=8
+                                           scene_batch_size=1
                                            )
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, num_workers=1,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=True, num_workers=1,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
@@ -185,15 +185,16 @@ if __name__ == '__main__':
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 2
-    for epoch in range(1, 350 + 1):
+    for epoch in range(1, 250 + 1):
         # Train model
         start_time = time.time()
         train(model, device, trainloader, optimizer, epoch)
         test_loss = test(model, device, testloader)
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
+        torch.save(model.state_dict(), 'bothModelLSTMpre.pkl')
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'bothModelLSTM.pkl')
+            torch.save(model.state_dict(), 'bothModelLSTMpreval.pkl')
             last_test_loss = test_loss
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
@@ -201,5 +202,5 @@ if __name__ == '__main__':
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'bothModelLSTM.pkl')
+        torch.save(model.state_dict(), 'bothModelLSTMval.pkl')
         last_test_loss = test_loss

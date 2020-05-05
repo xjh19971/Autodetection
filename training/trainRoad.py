@@ -1,21 +1,17 @@
-import os
-import random
+import math
+import re
+import time
 
 import numpy as np
-import pandas as pd
-import time
-import torchcontrib
-import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torchvision import transforms
 import torch.optim as optim
 from torch.optim import lr_scheduler
-from dataset.dataHelper import LabeledDatasetScene
-from utils.helper import collate_fn_lstm, draw_box, compute_ts_road_map
+from torchvision import transforms
+
 import model.roadModel as roadModel
-import re
+from dataset.dataHelper import LabeledDatasetScene
+from utils.helper import collate_fn_lstm, compute_ts_road_map
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
@@ -120,23 +116,23 @@ if __name__ == '__main__':
     data_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
-        transforms.Resize((128, 160),0),
+        transforms.Resize((128, 160), 0),
         transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
-        transforms.Resize((200, 200),0),
+        transforms.Resize((200, 200), 0),
         transforms.ToTensor()
     ])
     labeled_trainset = LabeledDatasetScene(image_folder=image_folder,
-                                      annotation_file=annotation_csv,
-                                      scene_index=labeled_scene_index,
-                                      transform=data_transforms,
-                                      roadmap_transform=roadmap_transforms,
-                                      extra_info=True,
-                                      scene_batch_size=8
-                                      )
-    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90* len(labeled_trainset)),
+                                           annotation_file=annotation_csv,
+                                           scene_index=labeled_scene_index,
+                                           transform=data_transforms,
+                                           roadmap_transform=roadmap_transforms,
+                                           extra_info=True,
+                                           scene_batch_size=8
+                                           )
+    trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, num_workers=1,
@@ -154,7 +150,7 @@ if __name__ == '__main__':
         for para in model.efficientNet.parameters():
             para.requires_grad = False
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.01,weight_decay=1e-8)
+    optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-8)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
@@ -164,17 +160,17 @@ if __name__ == '__main__':
         train(model, device, trainloader, optimizer, epoch)
         test_loss = test(model, device, testloader)
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
-        #scheduler.step(epoch)
+        # scheduler.step(epoch)
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'roadModelori.pkl')
             last_test_loss = test_loss
-        #if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
+        # if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
         #    optimizer.update_swa()
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    #optimizer.swap_swa_sgd()
+    # optimizer.swap_swa_sgd()
     model = model.cpu()
-    #optimizer.bn_update(trainloader, model)
+    # optimizer.bn_update(trainloader, model)
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):

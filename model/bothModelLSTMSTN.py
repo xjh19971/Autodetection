@@ -1,11 +1,9 @@
-import torch.nn as nn
-import torch.utils.model_zoo as model_zoo
-from model.MobileNet import MobileNetV3
 import torch
-import numpy as np
+import torch.nn as nn
+
 from model.EfficientNetBackbone import EfficientNet
 from model.detectionModel import YOLOLayer
-
+import torch.nn.functional as F
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
@@ -64,7 +62,6 @@ class AutoNet(nn.Module):
             # nn.Dropout(p=0.4)
         )
         self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.4)
-        #self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True)
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
@@ -72,13 +69,33 @@ class AutoNet(nn.Module):
             nn.Dropout(0.4),
         )
         self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.4)
-        #self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True)
         self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 128, bias=False),
             nn.BatchNorm1d(25 * 25 * 128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.4),
         )
+        '''
+        self.padding = nn.ZeroPad2d((12, 0, 0, 0))
+        self.localization_list = []
+        self.fc_loc_list = []
+        for i in range(6):
+            self.localization_list.append(nn.Sequential(
+                nn.Conv2d(16, 16, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(16),
+                nn.ReLU(True),
+                nn.Conv2d(16, 16, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(16),
+                nn.ReLU(True)
+            ).cuda())
+            # Regressor for the 3 * 2 affine matrix
+            self.fc_loc_list.append(nn.Sequential(
+                nn.Linear(25 * 25 * 16, 128, bias=False),
+                nn.BatchNorm1d(128),
+                nn.ReLU(True),
+                nn.Linear(128, 3 * 2)
+            ).cuda())
+            '''
         self.inplanes = 16
         self.conv0 = self._make_layer(BasicBlock, 16, 2)
         self.deconv0 = self._make_deconv_layer(16, 16)
@@ -158,6 +175,17 @@ class AutoNet(nn.Module):
         x = x.view(scene * step, self.fc_num * 6)
         return x
 
+    def stn(self, x, index):
+        xs = self.localization_list[index](x)
+        xs = xs.view(-1, 25 * 25 * 16)
+        theta = self.fc_loc_list[index](xs)
+        theta = theta.view(-1, 2, 3)
+
+        grid = F.affine_grid(theta, x.size(),align_corners=True)
+        x = F.grid_sample(x, grid,align_corners=True)
+
+        return x
+
     def forward(self, x, detection_target):
         # (S,B,18,H,W)
         scene = x.size(0)
@@ -190,7 +218,7 @@ class AutoNet(nn.Module):
         x2 = self.deconv0_1(x2)  # detection
         x2 = self.conv1_1(x2)
         x2 = self.deconv1_1(x2)
-        x2 = self.convfinal_1(x2) #100*100
+        x2 = self.convfinal_1(x2)  # 100*100
 
         output2, total_loss = self.yolo1(x2, detection_target, 800)
         output1 = x1.view(-1, 2, 200, 200)

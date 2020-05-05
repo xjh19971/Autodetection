@@ -1,6 +1,7 @@
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
+
 from model.EfficientNetBackbone import EfficientNet
 from model.detectionModel import YOLOLayer
 
@@ -53,11 +54,11 @@ class AutoNet(nn.Module):
         self.num_classes = num_classes
         self.device = device
         self.anchors = anchors
-        self.anchors1= np.reshape(anchors[0],[1,2])
-        self.anchors2= anchors[1:]
+        self.anchors1 = np.reshape(anchors[0], [1, 2])
+        self.anchors2 = anchors[1:]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b3')
+        self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
@@ -68,14 +69,14 @@ class AutoNet(nn.Module):
             nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
             nn.BatchNorm1d(25 * 25 * 16),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.2),
+            nn.Dropout(0.25),
         )
         self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 128, bias=False),
             nn.BatchNorm1d(25 * 25 * 128),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.2),
+            nn.Dropout(0.25),
         )
         self.inplanes = 16
         self.conv0 = self._make_layer(BasicBlock, 16, 2)
@@ -171,11 +172,13 @@ class AutoNet(nn.Module):
         mu = x[:, 0, :]
         logvar = x[:, 1, :]
         x = self.reparameterise(mu, logvar)
-        x = x.view(scene, step, 6, self.latent)
-        x = x.transpose(1, 2).contiguous()
-        x = x.view(-1, step, self.latent)
+        # x = x.view(scene, step, 6, self.latent)
+        # x = x.transpose(1, 2).contiguous()
+        # x = x.view(-1, step, self.latent)
 
         x1 = self.batch_lstm(x, scene, step, 1)
+        #x1 = self.fc1(x)
+        #x1 = x1.view(-1, self.fc_num * 6)
         x1 = self.fc2(x1)
         x1 = x1.view(x1.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         x1 = self.conv0(x1)
@@ -187,21 +190,22 @@ class AutoNet(nn.Module):
         x1 = self.convfinal(x1)
 
         x2 = self.batch_lstm(x, scene, step, 2)
+        #x2 = self.fc1_1(x)
+        #x2 = x2.view(-1, self.fc_num * 6)
         x2 = self.fc2_1(x2)
         x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         x2 = self.conv0_1(x2)
         x2 = self.deconv0_1(x2)  # detection
         detect_output1 = self.conv1_1_detect(x2)
         detect_output1 = self.convfinal_1(detect_output1)
-        detect_output1,detect_loss1 = self.yolo1(detect_output1,detection_target,800)
+        detect_output1, detect_loss1 = self.yolo1(detect_output1, detection_target, 800)
         x2 = self.conv1_1(x2)
         x2 = self.deconv1_1(x2)
-        detect_output2 =self.conv2_1_detect(x2)
+        detect_output2 = self.conv2_1_detect(x2)
         detect_output2 = self.convfinal_2(detect_output2)
-        detect_output2,detect_loss2 = self.yolo2(detect_output2,detection_target,800)
-        total_loss=0.9*detect_loss1+0.1*detect_loss2
-        output1 = x1.view(-1, 2, 200, 200)
-        return nn.LogSoftmax(dim=1)(output1), detect_output1,detect_output2, total_loss
+        detect_output2, detect_loss2 = self.yolo2(detect_output2, detection_target, 800)
+        total_loss = 0.9 * detect_loss1 + 0.1 * detect_loss2
+        return nn.LogSoftmax(dim=1)(x1), detect_output1, detect_output2, total_loss
 
 
 def trainModel(device, anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4):
