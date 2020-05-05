@@ -9,7 +9,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torchvision import transforms
 
-import model.bothModel as bothModel
+import model.bothModelFPN as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
 
@@ -33,7 +33,7 @@ long_cycle = 40
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
-pretrain_file = None
+pretrain_file = "pretrainfinal.pkl"
 
 
 def get_anchors(anchors_path):
@@ -73,7 +73,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
         outputs = model(sample, [bbox_list, category_list])
         # Compute the negative log likelihood loss
         road_loss = nn.NLLLoss()(outputs[0], road_image)
-        detection_loss = outputs[3]
+        detection_loss = outputs[4]
         loss = road_loss + detection_loss
         # Compute the negative log likelihood loss
         output0 = outputs[0].view(-1, 2, 200, 200)
@@ -119,7 +119,7 @@ def test(model, device, test_loader):
             # Pass data through model
             outputs = model(sample, [bbox_list, category_list])
             road_loss = nn.NLLLoss()(outputs[0], road_image)
-            detection_loss = outputs[3]
+            detection_loss = outputs[4]
             test_loss += road_loss + detection_loss
             # Compute the negative log likelihood loss
             output0 = outputs[0].view(-1, 2, 200, 200)
@@ -164,9 +164,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True, num_workers=4,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=True, num_workers=4,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
@@ -175,13 +175,15 @@ if __name__ == '__main__':
     if pretrain_file is not None:
         pretrain_dict = torch.load(pretrain_file, map_location=device)
         model_dict = model.state_dict()
-        pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and re.search('^efficientNet.*', k)}
+        pretrain_dict = {k: v for k, v in pretrain_dict.items() if
+                         (k in model_dict and re.search('^efficientNet.*', k) and (not re.search('^efficientNet._fc.*',
+                                                                                           k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
         for para in model.efficientNet.parameters():
             para.requires_grad = False
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 2
@@ -192,9 +194,9 @@ if __name__ == '__main__':
         test_loss = test(model, device, testloader)
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
-        torch.save(model.state_dict(), 'bothModelpre.pkl')
+        torch.save(model.state_dict(), 'bothModelFPNpre.pkl')
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'bothModelpreval.pkl')
+            torch.save(model.state_dict(), 'bothModelFPNpreval.pkl')
             last_test_loss = test_loss
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
@@ -202,5 +204,5 @@ if __name__ == '__main__':
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'bothModelpreval.pkl')
+        torch.save(model.state_dict(), 'bothModelFPNpreval.pkl')
         last_test_loss = test_loss
