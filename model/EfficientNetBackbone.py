@@ -194,7 +194,7 @@ class EfficientNet(nn.Module):
             if drop_connect_rate:
                 drop_connect_rate *= float(idx) / len(self._blocks)
             x = block(x, drop_connect_rate=drop_connect_rate)
-            if idx==17 or idx ==25:
+            if idx==7 or idx==17 or idx ==25:
                 real_output.append(x)
         x = self._swish(self._bn1(self._conv_head(x)))
         real_output.append(x)
@@ -214,13 +214,13 @@ class EfficientNet(nn.Module):
             x = self._fc(x)
         else:
             output = self.extract_features_FPN(inputs)
-            x=output[2]
+            x=output[3]
             # Pooling and final linear layer
             x = self._avg_pooling(x)
             x = x.view(bs, -1)
             x = self._dropout(x)
             x = self._fc(x)
-            output[2]=x
+            output[3]=x
             x= output
         return x
 
