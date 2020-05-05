@@ -46,8 +46,8 @@ class BasicBlock(nn.Module):
 
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2):
-        self.fc_num1 = 200
-        self.fc_num2 = 200
+        self.fc_num1 = 100
+        self.fc_num2 = 80
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
@@ -64,19 +64,19 @@ class AutoNet(nn.Module):
         self.efficientNet._fc = nn.Sequential(
         )
         self.fc1_1_1 = nn.Sequential(
-            nn.Linear(384 * 4 * 5, self.fc_num1 * 3, bias=False),
+            nn.Linear(384 * 8 * 10, self.fc_num1 * 3, bias=False),
             nn.BatchNorm1d(self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_1_2 = nn.Sequential(
-            nn.Linear(136 * 8 * 10, self.fc_num1 * 3, bias=False),
+            nn.Linear(136 * 16 * 20, self.fc_num1 * 3, bias=False),
             nn.BatchNorm1d(self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_1_3 = nn.Sequential(
-            nn.Linear(48 * 16 * 20, self.fc_num1 * 3, bias=False),
+            nn.Linear(48 * 32 * 40, self.fc_num1 * 3, bias=False),
             nn.BatchNorm1d(self.fc_num1 * 3),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
@@ -273,7 +273,7 @@ class AutoNet(nn.Module):
         detect_output2, detect_loss2 = self.yolo2(detect_output2, detection_target, 800)
 
         total_loss = 0.4 * detect_loss0 + 0.3 * detect_loss1 + 0.3 * detect_loss2
-        
+
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, detect_output2, total_loss
 
 

@@ -105,9 +105,13 @@ def test(model, device, test_loader):
 
 if __name__ == '__main__':
     data_transforms = transforms.Compose([
-        # transforms.RandomHorizontalFlip(),
+        transforms.RandomResizedCrop((256, 306), scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333)),
+        transforms.ColorJitter(brightness=0.5),
+        transforms.ColorJitter(contrast=0.5),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(degrees=30),
         transforms.Pad((7, 0)),
-        transforms.Resize((128, 160), 0),
+        #transforms.Resize((128, 160), 0),
         transforms.ToTensor()
     ])
     unlabeled_trainset = UnlabeledDataset(image_folder=image_folder,
@@ -118,9 +122,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(unlabeled_trainset, [int(0.95 * len(unlabeled_trainset)),
                                                                            len(unlabeled_trainset) - int(
                                                                                0.95 * len(unlabeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=0,
                                               collate_fn=collate_fn_unlabeled)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=0,
                                              collate_fn=collate_fn_unlabeled)
 
     # sample, target, road_image, extra = iter(trainloader).next()

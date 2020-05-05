@@ -151,7 +151,7 @@ if __name__ == '__main__':
     data_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
-        transforms.Resize((128, 160)),
+        #transforms.Resize((128, 160)),
         transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
