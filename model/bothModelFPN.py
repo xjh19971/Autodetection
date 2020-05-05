@@ -218,7 +218,7 @@ class AutoNet(nn.Module):
         x2 = self.conv1_1(x2)
         x2 = self.deconv1_1(x2)
 
-        x2_2 = output_list[1].view(output_list[1].size(0), -1)
+        x2_2 = output_list[0].view(output_list[0].size(0), -1)
         x2_2 = self.fc1_3(x2_2)
         x2_2 = x2_2.view(-1, self.fc_num2 * 6)
         x2_2 = self.fc2_3(x2_2)
