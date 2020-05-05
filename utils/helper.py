@@ -21,7 +21,7 @@ def convert_map_to_road_map(ego_map):
 def collate_fn(batch):
     concated_input=[]
     for i in range(len(batch)):
-        concated_input.append(torch.reshape(batch[i][0],(1,18,128,160)))
+        concated_input.append(torch.reshape(batch[i][0],(1,18,256,320)))
     concated_input=torch.cat(concated_input,0)
     bbox_list=[]
     category_list=[]
@@ -43,7 +43,7 @@ def collate_fn(batch):
 def collate_fn_lstm(batch):
     concated_input=[]
     for i in range(len(batch)):
-        concated_input.append(batch[i][0].view(step_size,18,128,160))
+        concated_input.append(batch[i][0].view(step_size,18,256,320))
     concated_input=torch.stack(concated_input)
     batch_bbox_list=[]
     batch_category_list=[]
