@@ -79,14 +79,14 @@ class AutoNet(nn.Module):
             if i != 1 and i != 4:
                 self.fc2.append(nn.Sequential(
                     nn.Linear(self.fc_num1, 14 * 13 * 32, bias=False),
-                    nn.BatchNorm1d(14 * 13 * 16),
+                    nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
             else:
                 self.fc2.append(nn.Sequential(
                     nn.Linear(self.fc_num1, 13 * 18 * 32, bias=False),
-                    nn.BatchNorm1d(13 * 18 * 16),
+                    nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
