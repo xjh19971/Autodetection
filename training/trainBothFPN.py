@@ -185,10 +185,10 @@ if __name__ == '__main__':
                          (k in model_dict and re.search('^efficientNet.*', k))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
-        for para in model.efficientNet.parameters():
-            para.requires_grad = False
+        #for para in model.efficientNet.parameters():
+        #    para.requires_grad = False
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 2
