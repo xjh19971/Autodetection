@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-
+import matplotlib.pyplot as plt
 from utils.helper import convert_map_to_lane_map, convert_map_to_road_map
 
 NUM_SAMPLE_PER_SCENE = 126
