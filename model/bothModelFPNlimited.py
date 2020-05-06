@@ -169,7 +169,6 @@ class AutoNet(nn.Module):
         self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, self.device, 800)
         self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
         self.deconv0_1 = self._make_deconv_layer(128, 32)
-        self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
 
         self.inplanes = 64
         self.conv1_1_detect = self._make_layer(BasicBlock, 64, 2)
@@ -322,20 +321,20 @@ class AutoNet(nn.Module):
         feature1 = self.fc1_2(output_list[1].view(output_list[1].size(0), -1))
         x2 = torch.cat([feature0[:, :self.fc_num2], feature1[:, :self.fc_num2]], dim=1)
         x2 = self.limitedFC1(x2, self.fc2_1, 128, self.device)
+        x2 = self.conv0_1(x2)
         detect_output0 = self.conv0_1_detect(x2)
         detect_output0 = self.convfinal_0(detect_output0)
         detect_output0, detect_loss0 = self.yolo0(detect_output0, detection_target, 800)
-        x2 = self.conv0_1(x2)
         x2 = self.deconv0_1(x2)  # detection
 
         x2_1 = torch.cat([feature0[:, self.fc_num2:self.fc_num2 * 2], feature1[:, self.fc_num2:self.fc_num2 * 2]],
                          dim=1)
         x2_1 = self.limitedFC2(x2_1, self.fc2_2, 32, self.device)
         x2 = torch.cat([x2, x2_1], dim=1)
+        x2 = self.conv1_1(x2)
         detect_output1 = self.conv1_1_detect(x2)
         detect_output1 = self.convfinal_1(detect_output1)
         detect_output1, detect_loss1 = self.yolo1(detect_output1, detection_target, 800)
-        x2 = self.conv1_1(x2)
         x2 = self.deconv1_1(x2)
 
         x2_2 = torch.cat(
