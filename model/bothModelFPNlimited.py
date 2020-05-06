@@ -316,6 +316,8 @@ class AutoNet(nn.Module):
         x1 = self.deconv1(x1)
         x1 = self.conv2(x1)
         x1 = self.deconv2(x1)
+        x1 = self.conv3(x1)
+        x1 = self.deconv3(x1)
         x1 = self.convfinal(x1)
 
         # x2 = self.batch_lstm(x, scene, step, 2)
