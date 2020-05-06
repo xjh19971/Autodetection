@@ -309,7 +309,7 @@ class AutoNet(nn.Module):
         x1 = self.reparameterise(mu, logvar)
 
         x1 = self.fc1(x1)
-        x1 = self.limitedFC1(x1, self.fc2, 16, self.device)
+        x1 = self.limitedFC1(x1, self.fc2, 32, self.device)
         x1 = self.conv0(x1)
         x1 = self.deconv0(x1)
         x1 = self.conv1(x1)
