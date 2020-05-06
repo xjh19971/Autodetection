@@ -65,14 +65,14 @@ class AutoNet(nn.Module):
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
-            # nn.Dropout(p=0.4)
+            # nn.Dropout(p=0.25)
         )
         # self.rnn1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4),
+            nn.Dropout(0.25),
         )
         self.fc2 = nn.ModuleList([])
         for i in range(6):
@@ -81,27 +81,27 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num1, 14 * 13 * 16, bias=False),
                     nn.BatchNorm1d(14 * 13 * 16),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
             else:
                 self.fc2.append(nn.Sequential(
                     nn.Linear(self.fc_num1, 13 * 18 * 16, bias=False),
                     nn.BatchNorm1d(13 * 18 * 16),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
         # self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc1_1 = nn.Sequential(
             nn.Linear(384 * 4 * 5, self.fc_num2 * 3, bias=False),
             nn.BatchNorm1d(self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4),
+            nn.Dropout(0.25),
         )
         self.fc1_2 = nn.Sequential(
             nn.Linear(136 * 8 * 10, self.fc_num2 * 3, bias=False),
             nn.BatchNorm1d(self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.4),
+            nn.Dropout(0.25),
         )
         self.fc2_1 = nn.ModuleList([])
         for i in range(6):
@@ -110,14 +110,14 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num2 * 2, 14 * 13 * 128, bias=False),
                     nn.BatchNorm1d(14 * 13 * 128),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
             else:
                 self.fc2_1.append(nn.Sequential(
                     nn.Linear(self.fc_num2 * 2, 13 * 18 * 128, bias=False),
                     nn.BatchNorm1d(13 * 18 * 128),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
         self.fc2_2 = nn.ModuleList([])
         for i in range(6):
@@ -126,14 +126,14 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num2 * 2, 28 * 26 * 32, bias=False),
                     nn.BatchNorm1d(28 * 26 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
             else:
                 self.fc2_2.append(nn.Sequential(
                     nn.Linear(self.fc_num2 * 2, 26 * 36 * 32, bias=False),
                     nn.BatchNorm1d(26 * 36 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
         self.fc2_3 = nn.ModuleList([])
         for i in range(6):
@@ -142,14 +142,14 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num2 * 2, 56 * 52 * 8, bias=False),
                     nn.BatchNorm1d(56 * 52 * 8),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
             else:
                 self.fc2_3.append(nn.Sequential(
                     nn.Linear(self.fc_num2 * 2, 52 * 72 * 8, bias=False),
                     nn.BatchNorm1d(52 * 72 * 8),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.4),
+                    nn.Dropout(0.25),
                 ))
         self.inplanes = 16
         self.conv0 = self._make_layer(BasicBlock, 16, 2)
@@ -345,7 +345,7 @@ class AutoNet(nn.Module):
         detect_output2 = self.conv2_1_detect(x2)
         detect_output2 = self.convfinal_2(detect_output2)
         detect_output2, detect_loss2 = self.yolo2(detect_output2, detection_target, 800)
-        total_loss = 0.4 * detect_loss0 + 0.3 * detect_loss1 + 0.3 * detect_loss2
+        total_loss = 0.25 * detect_loss0 + 0.3 * detect_loss1 + 0.3 * detect_loss2
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, detect_output2, total_loss
 
 
