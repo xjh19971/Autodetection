@@ -86,8 +86,8 @@ def train(model, train_loader, optimizer, epoch, log_interval=50):
         detection_loss = outputs[4]
         loss = road_loss + detection_loss
         # Compute the negative log likelihood loss
-        output0 = outputs[0].view(-1, 2, 200, 200)
-        road_image = road_image.view(-1, 200, 200)
+        output0 = outputs[0].view(-1, 2, 400, 400)
+        road_image = road_image.view(-1, 400, 400)
         _, predicted = torch.max(output0.data, 1)
         AUC = compute_ts_road_map(predicted, road_image)
         # Backpropagate loss
@@ -136,8 +136,8 @@ def test(model, test_loader):
             detection_loss = outputs[4]
             test_loss += road_loss + detection_loss
             # Compute the negative log likelihood loss
-            output0 = outputs[0].view(-1, 2, 200, 200)
-            road_image = road_image.view(-1, 200, 200)
+            output0 = outputs[0].view(-1, 2, 400, 400)
+            road_image = road_image.view(-1, 400, 400)
             _, predicted = torch.max(output0.data, 1)
             AUC += compute_ts_road_map(predicted, road_image)
             P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics[
