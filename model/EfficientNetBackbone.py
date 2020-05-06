@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from utils.efficientnet_utils  import (
+from utils.efficientnet_utils import (
     round_filters,
     round_repeats,
     drop_connect,
@@ -107,13 +107,14 @@ class EfficientNet(nn.Module):
         model = EfficientNet.from_pretrained('efficientnet-b0')
     """
 
-    def __init__(self, blocks_args=None, global_params=None):
+    def __init__(self, blocks_args=None, global_params=None, freeze=False):
         super().__init__()
         assert isinstance(blocks_args, list), 'blocks_args should be a list'
         assert len(blocks_args) > 0, 'block args must be greater than 0'
         self._global_params = global_params
         self._blocks_args = blocks_args
-
+        self.freeze=freeze
+        self.freeze_layer=17
         # Get static or dynamic convolution depending on image size
         Conv2d = get_same_padding_conv2d(image_size=global_params.image_size)
 
@@ -144,6 +145,13 @@ class EfficientNet(nn.Module):
                 block_args = block_args._replace(input_filters=block_args.output_filters, stride=1)
             for _ in range(block_args.num_repeat - 1):
                 self._blocks.append(MBConvBlock(block_args, self._global_params))
+
+        if self.freeze:
+            for i in range(len(self._blocks)):
+                for para in self._blocks[i].parameters():
+                    if i<=self.freeze_layer:
+                        para.requires_grad = False
+
 
         # Head
         in_channels = block_args.output_filters  # output of final block
@@ -181,24 +189,54 @@ class EfficientNet(nn.Module):
 
         return x
 
-    def forward(self, inputs):
+    def extract_features_FPN(self, inputs):
+        """ Returns output of the final convolution layer """
+
+        # Stem
+        real_output = []
+        x = self._swish(self._bn0(self._conv_stem(inputs)))
+
+        # Blocks
+        for idx, block in enumerate(self._blocks):
+            drop_connect_rate = self._global_params.drop_connect_rate
+            if drop_connect_rate:
+                drop_connect_rate *= float(idx) / len(self._blocks)
+            x = block(x, drop_connect_rate=drop_connect_rate)
+            if idx == 7 or idx == 17 or idx == 25:
+                real_output.append(x)
+        x = self._swish(self._bn1(self._conv_head(x)))
+        real_output.append(x)
+        return real_output
+
+    def forward(self, inputs, pretrain=False):
         """ Calls extract_features to extract features, applies final linear layer, and returns logits. """
         bs = inputs.size(0)
         # Convolution layers
-        x = self.extract_features(inputs)
+        if pretrain is True:
+            x = self.extract_features(inputs)
 
-        # Pooling and final linear layer
-        x = self._avg_pooling(x)
-        x = x.view(bs, -1)
-        x = self._dropout(x)
-        x = self._fc(x)
+            # Pooling and final linear layer
+            x = self._avg_pooling(x)
+            x = x.view(bs, -1)
+            x = self._dropout(x)
+            x = self._fc(x)
+        else:
+            output = self.extract_features_FPN(inputs)
+            x = output[3]
+            # Pooling and final linear layer
+            x = self._avg_pooling(x)
+            x = x.view(bs, -1)
+            x = self._dropout(x)
+            x = self._fc(x)
+            output[3] = x
+            x = output
         return x
 
     @classmethod
-    def from_name(cls, model_name, override_params=None):
+    def from_name(cls, model_name, override_params=None,freeze=False):
         cls._check_model_name_is_valid(model_name)
         blocks_args, global_params = get_model_params(model_name, override_params)
-        return cls(blocks_args, global_params)
+        return cls(blocks_args, global_params,freeze)
 
     @classmethod
     def from_pretrained(cls, model_name, advprop=False, num_classes=1000, in_channels=3):

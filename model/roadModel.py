@@ -1,10 +1,6 @@
 import torch.nn as nn
-import torch.utils.model_zoo as model_zoo
-from model.MobileNet import MobileNetV3
-import numpy as np
+
 from model.EfficientNetBackbone import EfficientNet
-from model.mypretrainModel import AutoPretrainNet
-import torch
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -53,23 +49,17 @@ class AutoNet(nn.Module):
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b4')
         feature = self.efficientNet._fc.in_features
-        '''
         self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=2 * self.latent),
-            # nn.Dropout(p=0.4)
+            nn.Linear(in_features=feature, out_features=self.latent * 2),
+            nn.BatchNorm1d(self.latent * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2)
         )
         self.fc1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num, bias=False),
             nn.BatchNorm1d(self.fc_num),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2)
-        )
-        '''
-        self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=self.fc_num),
-            nn.BatchNorm1d(self.fc_num),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.2)
         )
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 16, bias=False),
@@ -126,15 +116,16 @@ class AutoNet(nn.Module):
         return mu
 
     def forward(self, x):
-        batch_size = x.size(0)
-        x = x.view(x.size(0) * 6, -1, 128, 160)
+        scene = x.size(0)
+        step = x.size(1)
+        x = x.view(-1, 3, 128, 160)
         x = self.efficientNet(x)
-        #x = x.view(x.size(0), 2, -1)
-        #mu = x[:, 0, :]
-        #logvar = x[:, 1, :]
-        #x = self.reparameterise(mu, logvar)
-        #x = self.fc1(x)
-        x = x.view(batch_size, -1)
+        x = x.view(x.size(0), 2, -1)
+        mu = x[:, 0, :]
+        logvar = x[:, 1, :]
+        x = self.reparameterise(mu, logvar)
+        x = self.fc1(x)
+        x = x.view(scene * step, 6 * self.fc_num)
         x = self.fc2(x)
         x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         x = self.conv0(x)
