@@ -196,8 +196,8 @@ if __name__ == '__main__':
 
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     num_gpu = torch.cuda.device_count()
+    model = DataParallel(model, device_ids=range(num_gpu))
     model=model.cuda()
-    net = DataParallel(model, device_ids=range(num_gpu))
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
 
