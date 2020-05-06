@@ -90,18 +90,14 @@ def train(model, train_loader, optimizer, epoch, log_interval=50):
                 'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
                     epoch, batch_idx * len(sample), len(train_loader.dataset),
                            100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(),
-                    AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics[
-                        'precision']) / 3,
-                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] + model.yolo2.metrics[
-                               'recall50']) / 3))
+                    AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] )/ 2,
+                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 2))
     print(
         'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
             epoch,len(train_loader.dataset), len(train_loader.dataset),
                    100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), AUC, (
-                           model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] +
-                           model.yolo2.metrics['precision']) / 3,
-                   (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] + model.yolo2.metrics[
-                       'recall50']) / 3))
+                           model.yolo0.metrics['precision'] + model.yolo1.metrics['precision']) / 2,
+                   (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) /2 ))
 
 
 def test(model, test_loader):
@@ -130,10 +126,8 @@ def test(model, test_loader):
             road_image = road_image.view(-1, 400, 400)
             _, predicted = torch.max(output0.data, 1)
             AUC += compute_ts_road_map(predicted, road_image)
-            P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics[
-                'precision']) / 3
-            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] + model.yolo2.metrics[
-                'recall50']) / 3
+            P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] ) / 2
+            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 3
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
