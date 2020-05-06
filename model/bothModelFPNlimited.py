@@ -48,7 +48,7 @@ class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2,
                  freeze=True):
         self.latent = 1000
-        self.fc_num1 = 400
+        self.fc_num1 = 300
         self.fc_num2 = 200
         self.batch_size = batch_size
         self.step_size = step_size
@@ -78,14 +78,14 @@ class AutoNet(nn.Module):
         for i in range(6):
             if i != 1 and i != 4:
                 self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1, 14 * 13 * 16, bias=False),
+                    nn.Linear(self.fc_num1, 14 * 13 * 32, bias=False),
                     nn.BatchNorm1d(14 * 13 * 16),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
             else:
                 self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1, 13 * 18 * 16, bias=False),
+                    nn.Linear(self.fc_num1, 13 * 18 * 32, bias=False),
                     nn.BatchNorm1d(13 * 18 * 16),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
@@ -151,16 +151,18 @@ class AutoNet(nn.Module):
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
+        self.inplanes =32
+        self.conv0 = self._make_layer(BasicBlock, 32, 2)
+        self.deconv0 = self._make_deconv_layer(32, 16)
         self.inplanes = 16
-        self.conv0 = self._make_layer(BasicBlock, 16, 2)
-        self.deconv0 = self._make_deconv_layer(16, 8)
+        self.conv1 = self._make_layer(BasicBlock, 16, 2)
+        self.deconv1 = self._make_deconv_layer(16, 8)
         self.inplanes = 8
-        self.conv1 = self._make_layer(BasicBlock, 8, 2)
-        self.deconv1 = self._make_deconv_layer(8, 4)
+        self.conv2 = self._make_layer(BasicBlock, 8, 2)
+        self.deconv2 = self._make_deconv_layer(8, 4)
         self.inplanes = 4
-        self.conv2 = self._make_layer(BasicBlock, 4, 2)
-        self.deconv2 = self._make_deconv_layer(4, 2)
-        self.inplanes = 2
+        self.conv3 = self._make_layer(BasicBlock, 4, 2)
+        self.deconv3 = self._make_deconv_layer(4, 2)
         self.convfinal = nn.Conv2d(2, 2, 1)
 
         self.inplanes = 128

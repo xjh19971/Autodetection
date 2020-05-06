@@ -33,7 +33,7 @@ long_cycle = 40
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
-pretrain_file = "pretrainfinal.pkl"
+pretrain_file = "pretrainfinal128noaug.pkl"
 
 
 def get_anchors(anchors_path):
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     ])
     roadmap_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
-        transforms.Resize((200, 200)),
+        transforms.Resize((400, 400)),
         transforms.ToTensor()
     ])
     labeled_trainset = LabeledDatasetScene(image_folder=image_folder,
@@ -170,9 +170,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=False, num_workers=0,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=False, num_workers=0,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
