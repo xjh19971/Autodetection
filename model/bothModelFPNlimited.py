@@ -48,8 +48,8 @@ class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2,
                  freeze=True):
         self.latent = 1000
-        self.fc_num1 = 300
-        self.fc_num2 = 150
+        self.fc_num1 = 400
+        self.fc_num2 = 200
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
@@ -72,7 +72,7 @@ class AutoNet(nn.Module):
             nn.Linear(self.latent, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.4),
         )
         self.fc2 = nn.ModuleList([])
         for i in range(6):
@@ -81,27 +81,27 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num1, 14 * 13 * 16, bias=False),
                     nn.BatchNorm1d(14 * 13 * 16),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
             else:
                 self.fc2.append(nn.Sequential(
                     nn.Linear(self.fc_num1, 13 * 18 * 16, bias=False),
                     nn.BatchNorm1d(13 * 18 * 16),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
         # self.rnn1_1 = nn.LSTM(self.latent, self.fc_num, 2, batch_first=True, dropout=0.2)
         self.fc1_1 = nn.Sequential(
             nn.Linear(384 * 4 * 5, self.fc_num2 * 3, bias=False),
             nn.BatchNorm1d(self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.4),
         )
         self.fc1_2 = nn.Sequential(
             nn.Linear(136 * 8 * 10, self.fc_num2 * 3, bias=False),
             nn.BatchNorm1d(self.fc_num2 * 3),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.4),
         )
         self.fc2_1 = nn.ModuleList([])
         for i in range(6):
@@ -110,14 +110,14 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num2 * 2, 14 * 13 * 128, bias=False),
                     nn.BatchNorm1d(14 * 13 * 128),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
             else:
                 self.fc2_1.append(nn.Sequential(
                     nn.Linear(self.fc_num2 * 2, 13 * 18 * 128, bias=False),
                     nn.BatchNorm1d(13 * 18 * 128),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
         self.fc2_2 = nn.ModuleList([])
         for i in range(6):
@@ -126,14 +126,14 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num2 * 2, 28 * 26 * 32, bias=False),
                     nn.BatchNorm1d(28 * 26 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
             else:
                 self.fc2_2.append(nn.Sequential(
                     nn.Linear(self.fc_num2 * 2, 26 * 36 * 32, bias=False),
                     nn.BatchNorm1d(26 * 36 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
         self.fc2_3 = nn.ModuleList([])
         for i in range(6):
@@ -142,14 +142,14 @@ class AutoNet(nn.Module):
                     nn.Linear(self.fc_num2 * 2, 56 * 52 * 8, bias=False),
                     nn.BatchNorm1d(56 * 52 * 8),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
             else:
                 self.fc2_3.append(nn.Sequential(
                     nn.Linear(self.fc_num2 * 2, 52 * 72 * 8, bias=False),
                     nn.BatchNorm1d(52 * 72 * 8),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.4),
                 ))
         self.inplanes = 16
         self.conv0 = self._make_layer(BasicBlock, 16, 2)
