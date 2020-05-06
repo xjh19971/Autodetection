@@ -196,6 +196,7 @@ if __name__ == '__main__':
 
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     num_gpu = torch.cuda.device_count()
+    model=model.cuda()
     net = DataParallel(model, device_ids=range(num_gpu))
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
@@ -205,7 +206,7 @@ if __name__ == '__main__':
         # Train model
         start_time = time.time()
         train(net, trainloader, optimizer, epoch)
-        test_loss = test(model, testloader)
+        test_loss = test(net, testloader)
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
         if last_test_loss > test_loss:
