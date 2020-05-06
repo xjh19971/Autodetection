@@ -14,9 +14,7 @@ from torch.nn import DataParallel
 import model.bothModelFPNlimited as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
-#cuda = torch.cuda.is_available()
-#device = torch.device("cuda:0" if cuda else "cpu")
-os.environ["CUDA_VISIBLE_DEVICE"] = "1,2"
+os.environ["CUDA_VISIBLE_DEVICE"] = "2"
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
 
@@ -173,9 +171,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=12, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=12, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
@@ -195,8 +193,6 @@ if __name__ == '__main__':
         model = bothModel.trainModel(anchors, False)
 
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
-    num_gpu = torch.cuda.device_count()
-    model = DataParallel(model, device_ids=range(num_gpu))
     model=model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
