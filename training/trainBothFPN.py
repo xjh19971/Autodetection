@@ -14,7 +14,6 @@ from torch.nn import DataParallel
 import model.bothModelFPNlimited as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
-import argparse
 #cuda = torch.cuda.is_available()
 #device = torch.device("cuda:0" if cuda else "cpu")
 os.environ["CUDA_VISIBLE_DEVICE"] = "1,2"
@@ -195,11 +194,12 @@ if __name__ == '__main__':
     else:
         model = bothModel.trainModel(anchors, False)
 
+    print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     num_gpu = torch.cuda.device_count()
-    net = DataParallel(model, device_ides=range(num_gpu))
+    net = DataParallel(model, device_ids=range(num_gpu))
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
-    print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
+
     last_test_loss = 2
     for epoch in range(1, 250 + 1):
         # Train model
