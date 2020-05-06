@@ -32,7 +32,7 @@ def collate_fn(batch):
         max_y = torch.max(batch[i][1]['bounding_box'][:,1,:], dim=1)[0]
         width=torch.sub(max_x,min_x)
         height=torch.sub(max_y,min_y)
-        bbox_list.append(torch.floor(torch.stack([min_x*10+400,min_y*10+400,width*10,height*10],dim=1)))
+        bbox_list.append(torch.floor(torch.stack([min_x*10+400+width*10,min_y*10+400+height*10,width*10,height*10],dim=1)))
         category_list.append(batch[i][1]['category'])
     concated_roadmap=[]
     for i in range(len(batch)):
@@ -55,13 +55,16 @@ def collate_fn_lstm(batch):
             max_y = torch.max(batch[i][1][j]['bounding_box'][:,1,:], dim=1)[0]
             width=torch.sub(max_x,min_x)
             height=torch.sub(max_y,min_y)
-            batch_bbox_list.append(torch.floor(torch.stack([min_x*10+400,min_y*10+400,width*10,height*10],dim=1)))
+            batch_bbox_list.append(torch.floor(torch.stack([min_x*10+400+width*10,min_y*10+400+height*10,width*10,height*10],dim=1)))
             batch_category_list.append(batch[i][1][j]['category'])
     concated_roadmap=[]
     for i in range(len(batch)):
         concated_roadmap.append(batch[i][2])
     concated_roadmap=torch.cat(concated_roadmap,dim=0).long()
     return [concated_input,batch_bbox_list,batch_category_list,concated_roadmap]
+
+def collate_fn_display(batch):
+    return tuple(zip(*batch))
 
 def collate_fn_unlabeled(batch):
     concated_input=[]

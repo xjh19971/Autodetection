@@ -9,7 +9,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torchvision import transforms
 
-import model.bothModelFPN as bothModel
+import model.bothModelFPNlimited as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
 
@@ -170,15 +170,16 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=False, num_workers=0,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=False, num_workers=0,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
     # print(torch.stack(sample).shape)
-    model = bothModel.trainModel(device, anchors)
+
     if pretrain_file is not None:
+        model = bothModel.trainModel(device, anchors, True)
         pretrain_dict = torch.load(pretrain_file, map_location=device)
         model_dict = model.state_dict()
         pretrain_dict = {k: v for k, v in pretrain_dict.items() if
@@ -187,6 +188,8 @@ if __name__ == '__main__':
         model.load_state_dict(model_dict)
         #for para in model.efficientNet.parameters():
         #    para.requires_grad = False
+    else:
+        model = bothModel.trainModel(device, anchors, False)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
@@ -200,7 +203,7 @@ if __name__ == '__main__':
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'bothModelFPNpreval.pkl')
+            torch.save(model.state_dict(), 'bothModelFPNpreFT.pkl')
             last_test_loss = test_loss
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
@@ -208,5 +211,5 @@ if __name__ == '__main__':
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'bothModelFPNpreval.pkl')
+        torch.save(model.state_dict(), 'bothModelFPNpreFT.pkl')
         last_test_loss = test_loss
