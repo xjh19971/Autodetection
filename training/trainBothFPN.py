@@ -9,7 +9,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torchvision import transforms
-import torch.distributed as dist
+from torch.nn import DataParallel
+
 import model.bothModelFPNlimited as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
@@ -36,15 +37,6 @@ start_lr = 0.01
 gamma = 0.25
 pretrain_file = "pretrainfinal128noaug.pkl"
 
-def synchronize():
-    if not dist.is_initialized():
-        return
-    if not dist.is_available():
-        return
-    world_size=dist.get_world_size()
-    if world_size==1:
-        return
-    dist.barrier()
 
 def get_anchors(anchors_path):
     '''loads the anchors from a file'''
@@ -158,15 +150,7 @@ def test(model, test_loader):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--local_rank",type=int,default=0)
-    args=parser.parse_args()
-    num_gpus = int(os.environ["WORLD_SIZE"] if "WORLD_SIZE" in os.environ else 1)
-    is_distributed =num_gpus>1
-    if is_distributed:
-        torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(backend="nccl")
-        synchronize()
+
 
     data_transforms = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
@@ -211,8 +195,8 @@ if __name__ == '__main__':
     else:
         model = bothModel.trainModel(anchors, False)
 
-    if is_distributed:
-        model=torch.nn.parallel.DistributedDataParallel(model,device_ids=[args.local_rank],output_device=args.local_rank,broadcast_buffers=False)
+    num_gpu = torch.cuda.device_count()
+    net = DataParallel(model, device_ides=range(num_gpu))
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
