@@ -204,7 +204,7 @@ if __name__ == '__main__':
     for epoch in range(1, 250 + 1):
         # Train model
         start_time = time.time()
-        train(model, trainloader, optimizer, epoch)
+        train(net, trainloader, optimizer, epoch)
         test_loss = test(model, testloader)
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
