@@ -5,7 +5,7 @@ import torch.nn as nn
 from model.EfficientNetBackbone import EfficientNet
 from model.detectionModel import YOLOLayer
 
-
+torch.cuda.set_device(0)
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
@@ -45,7 +45,7 @@ class BasicBlock(nn.Module):
 
 
 class AutoNet(nn.Module):
-    def __init__(self, scene_batch_size, batch_size, step_size, anchors, detection_classes, num_classes=2,freeze=True):
+    def __init__(self, scene_batch_size, batch_size, step_size, anchors, detection_classes, num_classes=2,freeze=True,device=None):
         self.latent = 1000
         self.fc_num1 = 300
         self.fc_num2 = 150
@@ -57,6 +57,8 @@ class AutoNet(nn.Module):
         self.anchors1 = np.reshape(anchors[0], [1, 2])
         self.anchors0 = anchors[1:5, :]
         self.detection_classes = detection_classes
+        if device is not None:
+            torch.cuda.set_device(device)
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3',freeze=freeze)
         feature = self.efficientNet._fc.in_features
@@ -102,7 +104,6 @@ class AutoNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
-        self.inplanes = 16
         self.inplanes =32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
         self.deconv0 = self._make_deconv_layer(32, 16)
@@ -129,7 +130,7 @@ class AutoNet(nn.Module):
         self.conv1_1_detect = self._make_layer(BasicBlock, 16, 2)
         self.convfinal_1 = nn.Conv2d(16, len(self.anchors1) * (self.detection_classes + 5), 1)
         self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800)
-        self.conv1_1 = self._make_layer(BasicBlock, 64, 2)
+        self.conv1_1 = self._make_layer(BasicBlock, 16, 2)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -214,5 +215,5 @@ class AutoNet(nn.Module):
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, total_loss
 
 
-def trainModel(anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4):
-    return AutoNet(scene_batch_size, batch_size, step_size, anchors, detection_classes)
+def trainModel(anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4,device=None,freeze=False):
+    return AutoNet(scene_batch_size, batch_size, step_size, anchors, detection_classes,device=device,freeze=freeze)

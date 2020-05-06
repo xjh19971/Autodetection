@@ -14,7 +14,8 @@ from torch.nn import DataParallel
 import model.bothModelFPN as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
-torch.cuda.set_device(0)
+device="cuda:0"
+torch.cuda.set_device(device)
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
 
@@ -72,7 +73,7 @@ def train(model, train_loader, optimizer, epoch, log_interval=50):
         outputs = model(sample, [bbox_list, category_list])
         # Compute the negative log likelihood loss
         road_loss = nn.NLLLoss()(outputs[0], road_image)
-        detection_loss = outputs[4]
+        detection_loss = outputs[3]
         loss = road_loss + detection_loss
         # Compute the negative log likelihood loss
         output0 = outputs[0].view(-1, 2, 400, 400)
@@ -122,7 +123,7 @@ def test(model, test_loader):
             # Pass data through model
             outputs = model(sample, [bbox_list, category_list])
             road_loss = nn.NLLLoss()(outputs[0], road_image)
-            detection_loss = outputs[4]
+            detection_loss = outputs[3]
             test_loss += road_loss + detection_loss
             # Compute the negative log likelihood loss
             output0 = outputs[0].view(-1, 2, 400, 400)
@@ -180,7 +181,7 @@ if __name__ == '__main__':
     # print(torch.stack(sample).shape)
 
     if pretrain_file is not None:
-        model = bothModel.trainModel(anchors, True)
+        model = bothModel.trainModel(anchors, freeze=True)
         pretrain_dict = torch.load(pretrain_file)
         model_dict = model.state_dict()
         pretrain_dict = {k: v for k, v in pretrain_dict.items() if
@@ -190,7 +191,7 @@ if __name__ == '__main__':
         #for para in model.efficientNet.parameters():
         #    para.requires_grad = False
     else:
-        model = bothModel.trainModel(anchors, False)
+        model = bothModel.trainModel(anchors, freeze=False,device=device)
 
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     model=model.cuda()
