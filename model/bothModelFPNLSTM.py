@@ -47,8 +47,8 @@ class BasicBlock(nn.Module):
 class AutoNet(nn.Module):
     def __init__(self, scene_batch_size, batch_size, step_size, anchors, detection_classes, num_classes=2,freeze=True,device=None):
         self.latent = 1000
-        self.fc_num1 = 300
-        self.fc_num2 = 150
+        self.fc_num1 = 400
+        self.fc_num2 = 200
         self.batch_size = batch_size
         self.step_size = step_size
         self.scene_batch_size = scene_batch_size
@@ -66,28 +66,28 @@ class AutoNet(nn.Module):
             nn.Linear(in_features=feature, out_features=self.latent),
             nn.BatchNorm1d(self.latent),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25)
+            nn.Dropout(0.3)
         )
-        self.fc1 = nn.LSTM(self.latent,self.fc_num1,1)
+        self.rnn1 = nn.LSTM(self.latent,self.fc_num1,2,dropout=0.3)
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num1 * 6, 25 * 25 * 32, bias=False),
             nn.BatchNorm1d(25 * 25 * 32),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.3),
         )
-        self.fc1_1 = nn.LSTM(384 * 4 * 5,self.fc_num2 * 2,1)
-        self.fc1_2 = nn.LSTM(136 * 8 * 10,self.fc_num2 * 2,1)
+        self.rnn1_1 = nn.LSTM(384 * 4 * 5,self.fc_num2 * 2,2,dropout=0.3)
+        self.rnn1_2 = nn.LSTM(136 * 8 * 10,self.fc_num2 * 2,2,dropout=0.3)
         self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6 * 2, 25 * 25 * 64, bias=False),
             nn.BatchNorm1d(25 * 25 * 64),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.3),
         )
         self.fc2_2 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6 * 2, 50 * 50 * 8, bias=False),
             nn.BatchNorm1d(50 * 50 * 8),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.3),
         )
         self.inplanes =32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
@@ -128,8 +128,6 @@ class AutoNet(nn.Module):
             elif isinstance(m, nn.LSTM):
                 nn.init.xavier_normal_(m.all_weights[0][0])
                 nn.init.xavier_normal_(m.all_weights[0][1])
-                nn.init.xavier_normal_(m.all_weights[1][0])
-                nn.init.xavier_normal_(m.all_weights[1][1])
 
     def _make_layer(self, block, planes, blocks):
         layers = []
@@ -148,30 +146,30 @@ class AutoNet(nn.Module):
         return nn.Sequential(*layers)
 
 
-    def batch_lstm(self, x, scene, step, branch):
+    def batch_lstm(self, x, scene, step,output, rnn):
+        x=x.view(scene,step,6,-1)
+        x=x.transpose(1,2).contiguous()
+        x=x.view(-1,step,x.size(3))
         x_lstm = []
-        h0 = torch.zeros((2, 6 * scene * step, self.fc_num)).cuda()
-        c0 = torch.zeros((2, 6 * scene * step, self.fc_num)).cuda()
+        h0 = torch.zeros((2, self.step_size, output)).cuda()
+        c0 = torch.zeros((2, self.step_size, output)).cuda()
         for k in range(step):
             if k < self.step_size:
-                x_pad = torch.zeros((6 * scene, self.step_size - k - 1, self.latent)).to(self.device)
+                x_pad = torch.zeros((6 * scene, self.step_size - k - 1,x.size(2))).cuda()
                 x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
             else:
                 x_lstm_unit = x[:, k - self.step_size + 1:k + 1, :]
             x_lstm.append(x_lstm_unit)
         x_lstm = torch.cat(x_lstm, dim=0)
-        if branch == 1:
-            x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
-        else:
-            x_lstm_out, (ht, ct) = self.rnn1_1(x_lstm, (h0, c0))
+        x_lstm_out, (ht, ct) = rnn(x_lstm, (h0, c0))
         x_lstm_final = []
         for k in range(step):
             x_lstm_unit = x_lstm_out[k * scene * 6:(k + 1) * scene * 6, self.step_size - 1, :]
             x_lstm_final.append(x_lstm_unit)
         x = torch.cat(x_lstm_final, dim=0)
-        x = x.view(scene, 6, step, self.fc_num)
+        x = x.view(scene, 6, step, output)
         x = x.transpose(1, 2).contiguous()
-        x = x.view(scene * step, self.fc_num * 6)
+        x = x.view(scene * step*6, output )
         return x
 
     def forward(self, x, detection_target):
@@ -182,7 +180,7 @@ class AutoNet(nn.Module):
         output_list = self.efficientNet(x)
         x1 = output_list[3]
 
-        x1 = self.fc1(x1)
+        x1 = self.batch_lstm(x1,scene,step,self.fc_num1,self.rnn1)
         x1 = x1.view(-1, self.fc_num1 * 6)
         x1 = self.fc2(x1)
         x1 = x1.view(x1.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
@@ -196,9 +194,8 @@ class AutoNet(nn.Module):
         x1 = self.deconv3(x1)
         x1 = self.convfinal(x1)
 
-        # x2 = self.batch_lstm(x, scene, step, 2)
-        feature0 = self.fc1_1(output_list[2].view(output_list[2].size(0), -1))
-        feature1 = self.fc1_2(output_list[1].view(output_list[1].size(0), -1))
+        feature0 = self.batch_lstm(output_list[2],scene,step,self.fc_num2*2,self.rnn1_1)
+        feature1 = self.batch_lstm(output_list[1],scene,step,self.fc_num2*2,self.rnn1_2)
         x2 = torch.cat([feature0[:, :self.fc_num2], feature1[:, :self.fc_num2]], dim=1)
         x2 = x2.view(-1, self.fc_num2 * 6 * 2)
         x2 = self.fc2_1(x2)

@@ -11,7 +11,7 @@ from torch.optim import lr_scheduler
 from torchvision import transforms
 from torch.nn import DataParallel
 
-import model.bothModelFPN as bothModel
+import model.bothModelFPNLSTM as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
 device="cuda:0"
@@ -28,8 +28,8 @@ unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
-start_epoch = 200
-long_cycle = 40
+start_epoch = 300
+long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
@@ -127,7 +127,7 @@ def test(model, test_loader):
             _, predicted = torch.max(output0.data, 1)
             AUC += compute_ts_road_map(predicted, road_image)
             P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] ) / 2
-            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 3
+            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 2
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
@@ -161,14 +161,14 @@ if __name__ == '__main__':
                                            transform=data_transforms,
                                            roadmap_transform=roadmap_transforms,
                                            extra_info=False,
-                                           scene_batch_size=1
+                                           scene_batch_size=2
                                            )
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
 
     last_test_loss = 2
-    for epoch in range(1, 250 + 1):
+    for epoch in range(1, 350 + 1):
         # Train model
         start_time = time.time()
         train(model, trainloader, optimizer, epoch)
@@ -201,7 +201,7 @@ if __name__ == '__main__':
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'bothModelFPNpreFT.pkl')
+            torch.save(model.state_dict(), 'bothModelFPNpreFTLSTM.pkl')
             last_test_loss = test_loss
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
@@ -209,5 +209,5 @@ if __name__ == '__main__':
     model = model.cuda()
     test_loss = test(model, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'bothModelFPNpreFT.pkl')
+        torch.save(model.state_dict(), 'bothModelFPNpreFTLSTM.pkl')
         last_test_loss = test_loss

@@ -1,14 +1,10 @@
 import os
-from PIL import Image
 
 import numpy as np
 import pandas as pd
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import matplotlib.pyplot as plt
+from PIL import Image
+
 from utils.helper import convert_map_to_lane_map, convert_map_to_road_map
 
 NUM_SAMPLE_PER_SCENE = 126
@@ -166,14 +162,14 @@ class LabeledDatasetScene(torch.utils.data.Dataset):
         self.scene_batch_size = scene_batch_size
 
     def __len__(self):
-        return (self.scene_index.size * (NUM_SAMPLE_PER_SCENE// self.scene_batch_size)*self.scene_batch_size) // self.scene_batch_size
+        return self.scene_index.size * (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1)
 
     def __getitem__(self, index):
-        scene_id = self.scene_index[index // (NUM_SAMPLE_PER_SCENE // self.scene_batch_size)]
+        scene_id = self.scene_index[index // (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1)]
         # sample_id = index % (NUM_SAMPLE_PER_SCENE // self.scene_batch_size)
-        sample_id_list = np.arange(index % (NUM_SAMPLE_PER_SCENE // self.scene_batch_size) * self.scene_batch_size,
+        sample_id_list = np.arange(index % (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1),
                                    (index % (
-                                               NUM_SAMPLE_PER_SCENE // self.scene_batch_size) + 1) * self.scene_batch_size)
+                                           NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1) + self.scene_batch_size))
         sample_path_list = []
         for sample_id in sample_id_list:
             sample_path = os.path.join(self.image_folder, f'scene_{scene_id}', f'sample_{sample_id}')
@@ -187,7 +183,7 @@ class LabeledDatasetScene(torch.utils.data.Dataset):
                 images.append(self.transform(image))
             image_tensor = torch.stack(images)
             samples.append(image_tensor)
-        samples=torch.stack(samples)
+        samples = torch.stack(samples)
 
         corners_list = []
         categories_list = []
@@ -197,10 +193,10 @@ class LabeledDatasetScene(torch.utils.data.Dataset):
             corners_list.append(
                 data_entries[['fl_x', 'fr_x', 'bl_x', 'br_x', 'fl_y', 'fr_y', 'bl_y', 'br_y']].to_numpy())
             categories_list.append(data_entries.category_id.to_numpy())
-        road_image_list=[]
-        target_list=[]
+        road_image_list = []
+        target_list = []
         for i in range(len(sample_path_list)):
-            sample_path=sample_path_list[i]
+            sample_path = sample_path_list[i]
             ego_path = os.path.join(sample_path, 'ego.png')
             ego_image = Image.open(ego_path)
             ego_image = self.roadmap_transform(ego_image)
@@ -210,6 +206,6 @@ class LabeledDatasetScene(torch.utils.data.Dataset):
             target['bounding_box'] = torch.as_tensor(corners_list[i]).view(-1, 2, 4)
             target['category'] = torch.as_tensor(categories_list[i])
             target_list.append(target)
-        road_images=torch.stack(road_image_list)
+        road_images = torch.stack(road_image_list)
 
         return samples, target_list, road_images
