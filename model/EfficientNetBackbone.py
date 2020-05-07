@@ -146,11 +146,11 @@ class EfficientNet(nn.Module):
             for _ in range(block_args.num_repeat - 1):
                 self._blocks.append(MBConvBlock(block_args, self._global_params))
 
-        #if self.freeze:
-        #    for i in range(len(self._blocks)):
-        #        for para in self._blocks[i].parameters():
-         #           if i<=self.freeze_layer:
-         #               para.requires_grad = False
+        if self.freeze:
+            for i in range(len(self._blocks)):
+                for para in self._blocks[i].parameters():
+                    if i<=self.freeze_layer:
+                       para.requires_grad = False
 
 
         # Head
