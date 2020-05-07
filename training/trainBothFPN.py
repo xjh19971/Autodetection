@@ -13,7 +13,7 @@ import model.bothModelFPN as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
 
-device="cuda:2"
+device="cuda:0"
 torch.cuda.set_device(device)
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
@@ -180,8 +180,8 @@ if __name__ == '__main__':
                          (k in model_dict and re.search('^efficientNet.*', k) and (not  re.search('^efficientNet._fc.*', k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
-        for para in model.efficientNet.parameters():
-           para.requires_grad = False
+        #for para in model.efficientNet.parameters():
+        #   para.requires_grad = False
     else:
         model = bothModel.trainModel(device,anchors, freeze=False)
 
