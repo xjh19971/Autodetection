@@ -13,7 +13,7 @@ import model.bothModelFPN as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
 
-device="cuda:0"
+device="cuda:2"
 torch.cuda.set_device(device)
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
 
     last_test_loss = 2
-    for epoch in range(1, 350 + 1):
+    for epoch in range(1, 450 + 1):
         # Train model
         start_time = time.time()
         train(model, trainloader, optimizer, epoch)
