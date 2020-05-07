@@ -68,15 +68,15 @@ class AutoNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(0.3)
         )
-        self.rnn1 = nn.LSTM(self.latent,self.fc_num1,2,dropout=0.3)
+        self.rnn1 = nn.LSTM(self.latent,self.fc_num1,2,dropout=0.3,batch_first=True)
         self.fc2 = nn.Sequential(
             nn.Linear(self.fc_num1 * 6, 25 * 25 * 32, bias=False),
             nn.BatchNorm1d(25 * 25 * 32),
             nn.ReLU(inplace=True),
             nn.Dropout(0.3),
         )
-        self.rnn1_1 = nn.LSTM(384 * 4 * 5,self.fc_num2 * 2,2,dropout=0.3)
-        self.rnn1_2 = nn.LSTM(136 * 8 * 10,self.fc_num2 * 2,2,dropout=0.3)
+        self.rnn1_1 = nn.LSTM(384 * 4 * 5,self.fc_num2 * 2,2,dropout=0.3,batch_first=True)
+        self.rnn1_2 = nn.LSTM(136 * 8 * 10,self.fc_num2 * 2,2,dropout=0.3,batch_first=True)
         self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6 * 2, 25 * 25 * 64, bias=False),
             nn.BatchNorm1d(25 * 25 * 64),
@@ -151,8 +151,8 @@ class AutoNet(nn.Module):
         x=x.transpose(1,2).contiguous()
         x=x.view(-1,step,x.size(3))
         x_lstm = []
-        h0 = torch.zeros((2, self.step_size, output)).cuda()
-        c0 = torch.zeros((2, self.step_size, output)).cuda()
+        h0 = torch.zeros((2, scene*step*6, output)).cuda()
+        c0 = torch.zeros((2, scene*step*6, output)).cuda()
         for k in range(step):
             if k < self.step_size:
                 x_pad = torch.zeros((6 * scene, self.step_size - k - 1,x.size(2))).cuda()
