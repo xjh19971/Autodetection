@@ -54,9 +54,8 @@ class AutoNet(nn.Module):
         self.num_classes = num_classes
         self.device = device
         self.anchors = anchors
-        self.anchors2 = np.reshape(anchors[0], [1, 2])
-        self.anchors1 = anchors[1:5, :]
-        self.anchors0 = anchors[5:, :]
+        self.anchors1= np.reshape(anchors[0], [1, 2])
+        self.anchors0 = anchors[1:5, :]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3',freeze=freeze)
@@ -100,41 +99,43 @@ class AutoNet(nn.Module):
             nn.Dropout(0.25),
         )
         self.fc1_2_1 = nn.Sequential(
-            nn.Linear(384 * 4 * 5, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
+            nn.Linear(384 * 4 * 5, self.fc_num2 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_2_2 = nn.Sequential(
-            nn.Linear(136 * 8 * 10, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
+            nn.Linear(136 * 8 * 10, self.fc_num2 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc1_2_3 = nn.Sequential(
-            nn.Linear(48 * 16 * 20, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
+            nn.Linear(48 * 16 * 20, self.fc_num2 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_2_1 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6 * 3, 25 * 25 * 128, bias=False),
-            nn.BatchNorm1d(25 * 25 * 128),
+            nn.Linear(self.fc_num2 * 6 * 3, 25 * 25 * 64, bias=False),
+            nn.BatchNorm1d(25 * 25 * 64),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
         self.fc2_2_2 = nn.Sequential(
-            nn.Linear(self.fc_num2 * 6 * 3, 50 * 50 * 32, bias=False),
-            nn.BatchNorm1d(50 * 50 * 32),
+            nn.Linear(self.fc_num2 * 6 * 3, 50 * 50 * 8, bias=False),
+            nn.BatchNorm1d(50 * 50 * 8),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
+        '''
         self.fc2_2_3 = nn.Sequential(
             nn.Linear(self.fc_num2 * 6 * 3, 100 * 100 * 8, bias=False),
             nn.BatchNorm1d(100 * 100 * 8),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
+        '''
         self.inplanes = 32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
         self.deconv0 = self._make_deconv_layer(32, 8)
@@ -149,25 +150,27 @@ class AutoNet(nn.Module):
         self.deconv3 = self._make_deconv_layer(4, 2)
         self.convfinal = nn.Conv2d(2, 2, 1)
 
-        self.inplanes = 128
-        self.conv0_1_detect = self._make_layer(BasicBlock, 128, 2)
-        self.convfinal_0 = nn.Conv2d(128, len(self.anchors0) * (self.detection_classes + 5), 1)
-        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800,device= self.device)
-        self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
-        self.deconv0_1 = self._make_deconv_layer(128, 32)
-        self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
-
         self.inplanes = 64
-        self.conv1_1_detect = self._make_layer(BasicBlock, 64, 2)
-        self.convfinal_1 = nn.Conv2d(64, len(self.anchors1) * (self.detection_classes + 5), 1)
-        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800,device= self.device)
-        self.conv1_1 = self._make_layer(BasicBlock, 64, 2)
-        self.deconv1_1 = self._make_deconv_layer(64, 8)
+        self.conv0_1_detect = self._make_layer(BasicBlock, 64, 2)
+        self.convfinal_0 = nn.Conv2d(64, len(self.anchors0) * (self.detection_classes + 5), 1)
+        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800,device= self.device)
+        self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
+        self.deconv0_1 = self._make_deconv_layer(64, 8)
+        self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
 
+        self.inplanes = 16
+        self.conv1_1_detect = self._make_layer(BasicBlock, 16, 2)
+        self.convfinal_1 = nn.Conv2d(16, len(self.anchors1) * (self.detection_classes + 5), 1)
+        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800,device= self.device)
+        self.conv1_1 = self._make_layer(BasicBlock, 16, 2)
+        '''
+        self.deconv1_1 = self._make_deconv_layer(64, 8)
+        
         self.inplanes = 16
         self.conv2_1_detect = self._make_layer(BasicBlock, 16, 2)
         self.convfinal_2 = nn.Conv2d(16, len(self.anchors2) * (self.detection_classes + 5), 1)
         self.yolo2 = YOLOLayer(self.anchors2, self.detection_classes, 800,device= self.device)
+        '''
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -267,6 +270,7 @@ class AutoNet(nn.Module):
         detect_output1 = self.conv1_1_detect(x2)
         detect_output1 = self.convfinal_1(detect_output1)
         detect_output1, detect_loss1 = self.yolo1(detect_output1, detection_target, 800)
+        '''
         x2 = self.deconv1_1(x2)
 
         x2_2 = torch.cat(
@@ -279,10 +283,10 @@ class AutoNet(nn.Module):
         detect_output2 = self.conv2_1_detect(x2)
         detect_output2 = self.convfinal_2(detect_output2)
         detect_output2, detect_loss2 = self.yolo2(detect_output2, detection_target, 800)
+        '''
+        total_loss = 0.4 * detect_loss0 + 0.3 * detect_loss1
 
-        total_loss = 0.4 * detect_loss0 + 0.3 * detect_loss1 + 0.3 * detect_loss2
-
-        return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, detect_output2, total_loss
+        return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, total_loss
 
 
 def trainModel(device, anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4,freeze=False):

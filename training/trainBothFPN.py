@@ -72,7 +72,7 @@ def train(model, train_loader, optimizer, epoch, log_interval=50):
         outputs = model(sample, [bbox_list, category_list])
         # Compute the negative log likelihood loss
         road_loss = nn.NLLLoss()(outputs[0], road_image)
-        detection_loss = outputs[4]
+        detection_loss = outputs[3]
         loss = road_loss + detection_loss
         # Compute the negative log likelihood loss
         output0 = outputs[0].view(-1, 2, 400, 400)
@@ -89,13 +89,13 @@ def train(model, train_loader, optimizer, epoch, log_interval=50):
                 'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
                     epoch, batch_idx * len(sample), len(train_loader.dataset),
                            100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(),
-                    AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics['precision'])/ 3,
-                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] +model.yolo2.metrics['recall50']) / 3))
+                    AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'])/ 2,
+                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 2))
     print(
         'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
             epoch,len(train_loader.dataset), len(train_loader.dataset),
-                   100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics['precision'])/ 3,
-                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] +model.yolo2.metrics['recall50']) / 3))
+                   100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] )/ 2,
+                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 2))
 
 
 def test(model, test_loader):
@@ -117,15 +117,15 @@ def test(model, test_loader):
             # Pass data through model
             outputs = model(sample, [bbox_list, category_list])
             road_loss = nn.NLLLoss()(outputs[0], road_image)
-            detection_loss = outputs[4]
+            detection_loss = outputs[3]
             test_loss += road_loss + detection_loss
             # Compute the negative log likelihood loss
             output0 = outputs[0].view(-1, 2, 400, 400)
             road_image = road_image.view(-1, 400, 400)
             _, predicted = torch.max(output0.data, 1)
             AUC += compute_ts_road_map(predicted, road_image)
-            P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] + model.yolo2.metrics['precision'])/ 3
-            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] +model.yolo2.metrics['recall50']) / 3
+            P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] )/ 2
+            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 2
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
@@ -180,8 +180,8 @@ if __name__ == '__main__':
                          (k in model_dict and re.search('^efficientNet.*', k) and (not  re.search('^efficientNet._fc.*', k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
-        #for para in model.efficientNet.parameters():
-        #    para.requires_grad = False
+        for para in model.efficientNet.parameters():
+           para.requires_grad = False
     else:
         model = bothModel.trainModel(device,anchors, freeze=False)
 
