@@ -5,6 +5,7 @@ from model.EfficientNetBackbone import EfficientNet
 from model.detectionModel import YOLOLayer
 import torch.nn.functional as F
 
+
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
@@ -181,8 +182,8 @@ class AutoNet(nn.Module):
         theta = self.fc_loc_list[index](xs)
         theta = theta.view(-1, 2, 3)
 
-        grid = F.affine_grid(theta, x.size(),align_corners=True)
-        x = F.grid_sample(x, grid,align_corners=True)
+        grid = F.affine_grid(theta, x.size(), align_corners=True)
+        x = F.grid_sample(x, grid, align_corners=True)
 
         return x
 

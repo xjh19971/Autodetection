@@ -113,8 +113,8 @@ class EfficientNet(nn.Module):
         assert len(blocks_args) > 0, 'block args must be greater than 0'
         self._global_params = global_params
         self._blocks_args = blocks_args
-        self.freeze=freeze
-        self.freeze_layer=17
+        self.freeze = freeze
+        self.freeze_layer = 17
         # Get static or dynamic convolution depending on image size
         Conv2d = get_same_padding_conv2d(image_size=global_params.image_size)
 
@@ -149,9 +149,8 @@ class EfficientNet(nn.Module):
         if self.freeze:
             for i in range(len(self._blocks)):
                 for para in self._blocks[i].parameters():
-                    if i<=self.freeze_layer:
-                       para.requires_grad = False
-
+                    if i <= self.freeze_layer:
+                        para.requires_grad = False
 
         # Head
         in_channels = block_args.output_filters  # output of final block
@@ -233,10 +232,10 @@ class EfficientNet(nn.Module):
         return x
 
     @classmethod
-    def from_name(cls, model_name, override_params=None,freeze=False):
+    def from_name(cls, model_name, override_params=None, freeze=False):
         cls._check_model_name_is_valid(model_name)
         blocks_args, global_params = get_model_params(model_name, override_params)
-        return cls(blocks_args, global_params,freeze)
+        return cls(blocks_args, global_params, freeze)
 
     @classmethod
     def from_pretrained(cls, model_name, advprop=False, num_classes=1000, in_channels=3):

@@ -2,12 +2,10 @@ import torch.nn as nn
 from model.EfficientNetBackbone import EfficientNet
 
 
-
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
-
 
 
 class BasicBlock(nn.Module):
@@ -33,7 +31,6 @@ class BasicBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
 
-
         if self.downsample is not None:
             residual = self.downsample(x)
 
@@ -41,7 +38,6 @@ class BasicBlock(nn.Module):
         out = self.relu(out)
 
         return out
-
 
 
 class AutoPretrainNet(nn.Module):
@@ -72,7 +68,6 @@ class AutoPretrainNet(nn.Module):
         self.deconv3 = self._make_deconv_layer(32, 3, last=True)
         self.upSample = nn.Upsample(scale_factor=2)
 
-
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -82,11 +77,9 @@ class AutoPretrainNet(nn.Module):
             elif isinstance(m, nn.ConvTranspose2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
-
     def _make_layer(self, block, planes, blocks):
         layers = []
         for i in range(blocks):
-
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
@@ -116,7 +109,7 @@ class AutoPretrainNet(nn.Module):
     def forward(self, x):
         batch_size = x.size(0)
         x = x.view(x.size(0) * 6, -1, 128, 160)
-        x = self.efficientNet(x,pretrain=True)
+        x = self.efficientNet(x, pretrain=True)
         x = x.view(x.size(0), 2, -1)
         mu = x[:, 0, :]
         logvar = x[:, 1, :]
@@ -137,4 +130,3 @@ class AutoPretrainNet(nn.Module):
 
 def trainModel():
     return AutoPretrainNet()
-

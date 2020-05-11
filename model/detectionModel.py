@@ -9,7 +9,7 @@ from utils.yolo_utils import build_targets, to_cpu
 class YOLOLayer(nn.Module):
     """Detection layer"""
 
-    def __init__(self, anchors, num_classes, img_dim=800,device=None):
+    def __init__(self, anchors, num_classes, img_dim=800, device=None):
         super(YOLOLayer, self).__init__()
         self.anchors = anchors
         self.num_anchors = len(anchors)
@@ -24,6 +24,7 @@ class YOLOLayer(nn.Module):
         self.grid_size = 0  # grid size
         if device is not None:
             torch.cuda.set_device(device)
+
     def compute_grid_offsets(self, grid_size, cuda=True):
         self.grid_size = grid_size
         g = self.grid_size

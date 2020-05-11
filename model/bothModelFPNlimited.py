@@ -150,7 +150,7 @@ class AutoNet(nn.Module):
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
-        self.inplanes =32
+        self.inplanes = 32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
         self.deconv0 = self._make_deconv_layer(32, 16)
         self.inplanes = 16
@@ -214,7 +214,6 @@ class AutoNet(nn.Module):
 
     def reparameterise(self, mu, logvar):
         return mu
-
 
     def limitedFC1(self, x, fc, filter):
         output = torch.zeros((x.size(0) // 6, filter, 25, 25)).cuda()
@@ -307,7 +306,7 @@ class AutoNet(nn.Module):
 
         x2_1 = torch.cat([feature0[:, self.fc_num2:self.fc_num2 * 2], feature1[:, self.fc_num2:self.fc_num2 * 2]],
                          dim=1)
-        x2_1 = self.limitedFC2(x2_1, self.fc2_2, 32,)
+        x2_1 = self.limitedFC2(x2_1, self.fc2_2, 32, )
         x2 = torch.cat([x2, x2_1], dim=1)
         x2 = self.conv1_1(x2)
         detect_output1 = self.conv1_1_detect(x2)
