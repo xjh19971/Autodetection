@@ -179,7 +179,7 @@ class AutoNet(nn.Module):
         scene = x.size(0)
         step = x.size(1)
         x = x.view(-1, 3, 128, 160)
-        x = self.efficientNet(x)
+        x[3] = self.efficientNet(x)
         x = x.view(x.size(0), 2, -1)
         mu = x[:, 0, :]
         logvar = x[:, 1, :]
