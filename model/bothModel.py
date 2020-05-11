@@ -148,31 +148,6 @@ class AutoNet(nn.Module):
     def reparameterise(self, mu, logvar):
         return mu
 
-    def batch_lstm(self, x, scene, step, branch):
-        x_lstm = []
-        h0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
-        c0 = torch.zeros((2, 6 * scene * step, self.fc_num)).to(self.device)
-        for k in range(step):
-            if k < self.step_size:
-                x_pad = torch.zeros((6 * scene, self.step_size - k - 1, self.latent)).to(self.device)
-                x_lstm_unit = torch.cat([x_pad, x[:, :k + 1, :]], dim=1)
-            else:
-                x_lstm_unit = x[:, k - self.step_size + 1:k + 1, :]
-            x_lstm.append(x_lstm_unit)
-        x_lstm = torch.cat(x_lstm, dim=0)
-        if branch == 1:
-            x_lstm_out, (ht, ct) = self.rnn1(x_lstm, (h0, c0))
-        else:
-            x_lstm_out, (ht, ct) = self.rnn1_1(x_lstm, (h0, c0))
-        x_lstm_final = []
-        for k in range(step):
-            x_lstm_unit = x_lstm_out[k * scene * 6:(k + 1) * scene * 6, self.step_size - 1, :]
-            x_lstm_final.append(x_lstm_unit)
-        x = torch.cat(x_lstm_final, dim=0)
-        x = x.view(scene, 6, step, self.fc_num)
-        x = x.transpose(1, 2).contiguous()
-        x = x.view(scene * step, self.fc_num * 6)
-        return x
 
     def forward(self, x, detection_target):
         # (S,B,18,H,W)
@@ -202,7 +177,7 @@ class AutoNet(nn.Module):
         x1 = self.convfinal(x1)
 
         x2 = self.fc1_1(x)
-        x2 = x2.view(-1, self.fc_num2 * 6 * 3)
+        x2 = x2.view(-1, self.fc_num * 6)
         x2 = self.fc2_1(x2)
         x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
         x2 = self.conv0_1(x2)
