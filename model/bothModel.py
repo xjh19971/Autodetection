@@ -215,7 +215,7 @@ class AutoNet(nn.Module):
         detect_output1 = self.conv1_1_detect(x2)
         detect_output1 = self.convfinal_1(detect_output1)
         detect_output1, detect_loss1 = self.yolo1(detect_output1, detection_target, 800)
-        return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, total_loss
+        return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, 0.6*detect_loss0+0.4*detect_loss1
 
 
 def trainModel(device, anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4):
