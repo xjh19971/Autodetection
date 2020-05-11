@@ -55,7 +55,7 @@ class AutoNet(nn.Module):
         self.device = device
         self.anchors = anchors
         self.anchors1 = np.reshape(anchors[0], [1, 2])
-        self.anchors2 = anchors[1:]
+        self.anchors0 = anchors[1:]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3')
