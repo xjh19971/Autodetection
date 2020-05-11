@@ -86,7 +86,7 @@ class AutoNet(nn.Module):
         )
         self.fc2_1 = nn.Sequential(
             nn.Linear(self.fc_num * 6, 25 * 25 * 64, bias=False),
-            nn.BatchNorm1d(25 * 25 * 128),
+            nn.BatchNorm1d(25 * 25 * 64),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
