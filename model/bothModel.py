@@ -107,7 +107,7 @@ class AutoNet(nn.Module):
         self.convfinal_0 = nn.Conv2d(64, len(self.anchors0) * (self.detection_classes + 5), 1)
         self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800, device=self.device)
         self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
-        self.deconv0_1 = self._make_deconv_layer(64, 8)
+        self.deconv0_1 = self._make_deconv_layer(64, 16)
         self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
 
         self.inplanes = 16
