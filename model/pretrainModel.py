@@ -1,5 +1,7 @@
 import torch.nn as nn
-from model.backboneModel import EfficientNet,BasicBlock
+
+from model.backboneModel import EfficientNet, BasicBlock
+
 
 class AutoPretrainNet(nn.Module):
     def __init__(self, num_classes=3):

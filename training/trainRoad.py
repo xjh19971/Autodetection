@@ -27,13 +27,13 @@ annotation_csv = 'dataset/data/annotation.csv'
 unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
-labeled_scene_index = np.arange(132, 134)
+labeled_scene_index = np.arange(106, 134)
 start_epoch = 150
 final_epoch = 200
 long_cycle = 30
 short_cycle = 5
 start_lr = 0.01
-batch_size=8
+batch_size = 8
 pretrain_file = "pretrainfinal.pkl"
 
 
@@ -139,17 +139,15 @@ if __name__ == '__main__':
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
 
-
     if pretrain_file is not None:
         model = roadModel.trainModel(freeze=True, device=device)
-        pretrain_dict = torch.load(pretrain_file,map_location=device)
+        pretrain_dict = torch.load(pretrain_file, map_location=device)
         model_dict = model.state_dict()
         pretrain_dict = {k: v for k, v in pretrain_dict.items() if
-                         (k in model_dict and re.search('^efficientNet.*', k) and (not  re.search('^efficientNet._fc.*', k)))}
+                         (k in model_dict and re.search('^efficientNet.*', k) and (
+                             not re.search('^efficientNet._fc.*', k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
-        #for para in model.efficientNet.parameters():
-        #   para.requires_grad = False
     else:
         model = roadModel.trainModel(freeze=False, device=device)
 

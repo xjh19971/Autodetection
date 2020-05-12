@@ -45,7 +45,8 @@ class BasicBlock(nn.Module):
 
 
 class AutoNet(nn.Module):
-    def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2,freeze=False):
+    def __init__(self, scene_batch_size, batch_size, step_size, device, anchors, detection_classes, num_classes=2,
+                 freeze=False):
         self.latent = 1000
         self.fc_num = 400
         self.batch_size = batch_size
@@ -58,7 +59,7 @@ class AutoNet(nn.Module):
         self.anchors2 = anchors[1:]
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b3',freeze=freeze)
+        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=freeze)
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
@@ -169,7 +170,7 @@ class AutoNet(nn.Module):
         step = x.size(1)
         x = x.view(-1, 3, 128, 160)
         x = self.efficientNet(x)
-        x=x[3]
+        x = x[3]
         x = x.view(x.size(0), 2, -1)
         mu = x[:, 0, :]
         logvar = x[:, 1, :]
@@ -211,5 +212,5 @@ class AutoNet(nn.Module):
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, total_loss
 
 
-def trainModel(device, anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4,freeze=False):
-    return AutoNet(scene_batch_size, batch_size, step_size, device, anchors, detection_classes,freeze=freeze)
+def trainModel(device, anchors, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4, freeze=False):
+    return AutoNet(scene_batch_size, batch_size, step_size, device, anchors, detection_classes, freeze=freeze)

@@ -210,10 +210,10 @@ class AutoNet(nn.Module):
         detect_output1 = self.convfinal_1(detect_output1)
         detect_output1, detect_loss1 = self.yolo1(detect_output1, detection_target, 800)
 
-        total_loss = 0.4 * detect_loss0 + 0.6 * detect_loss1
+        total_loss = 0.6 * detect_loss0 + 0.4 * detect_loss1
 
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, total_loss
 
 
-def trainModel(anchors, freeze=False, device=None):
-    return AutoNet(anchors, freeze=freeze, device=device)
+def trainModel(anchors, freeze=False, device=None, detection_class=9):
+    return AutoNet(anchors, detection_class, freeze=freeze, device=device)

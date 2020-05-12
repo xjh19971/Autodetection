@@ -1,4 +1,5 @@
 import torch.nn as nn
+
 from utils.yolo_utils import build_targets, to_cpu
 
 
@@ -51,7 +52,6 @@ from utils.efficientnet_utils import (
     get_same_padding_conv2d,
     get_model_params,
     efficientnet_params,
-    load_pretrained_weights,
     Swish,
     MemoryEfficientSwish,
 )

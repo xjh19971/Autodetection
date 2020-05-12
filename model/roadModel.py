@@ -1,14 +1,15 @@
 import torch.nn as nn
 
-from model.backboneModel import EfficientNet,BasicBlock
+from model.backboneModel import EfficientNet, BasicBlock
+
 
 class AutoNet(nn.Module):
-    def __init__(self, freeze=False,device=None):
+    def __init__(self, freeze=False, device=None):
         self.latent = 1000
         self.fc_num = 400
-        self.device=device
+        self.device = device
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b3',freeze=freeze)
+        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=freeze)
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=self.latent * 2),
@@ -102,5 +103,6 @@ class AutoNet(nn.Module):
         x = self.convfinal(x)
         return nn.LogSoftmax(dim=1)(x)
 
-def trainModel(freeze=False,device=None):
-    return AutoNet(freeze=freeze,device=device)
+
+def trainModel(freeze=False, device=None):
+    return AutoNet(freeze=freeze, device=device)

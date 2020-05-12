@@ -2,11 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from model.backboneModel import EfficientNet,YOLOLayer,BasicBlock
+from model.backboneModel import EfficientNet, YOLOLayer, BasicBlock
+
 
 class AutoNet(nn.Module):
-    def __init__(self, anchors, detection_classes,
-                 freeze=True,device=None):
+    def __init__(self, anchors, detection_classes, freeze=True, device=None):
         self.latent = 1000
         self.fc_num1 = 100
         self.fc_num2 = 100
@@ -14,6 +14,7 @@ class AutoNet(nn.Module):
         self.anchors2 = np.reshape(anchors[0], [1, 2])
         self.anchors1 = anchors[1:5, :]
         self.anchors0 = anchors[5:, :]
+        self.device = device
         self.detection_classes = detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=freeze)
@@ -123,21 +124,21 @@ class AutoNet(nn.Module):
         self.inplanes = 128
         self.conv0_1_detect = self._make_layer(BasicBlock, 128, 2)
         self.convfinal_0 = nn.Conv2d(128, len(self.anchors0) * (self.detection_classes + 5), 1)
-        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800)
+        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800, device=device)
         self.conv0_1 = self._make_layer(BasicBlock, 128, 2)
         self.deconv0_1 = self._make_deconv_layer(128, 32)
 
         self.inplanes = 64
         self.conv1_1_detect = self._make_layer(BasicBlock, 64, 2)
         self.convfinal_1 = nn.Conv2d(64, len(self.anchors1) * (self.detection_classes + 5), 1)
-        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800)
+        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800, device=device)
         self.conv1_1 = self._make_layer(BasicBlock, 64, 2)
         self.deconv1_1 = self._make_deconv_layer(64, 8)
 
         self.inplanes = 16
         self.conv2_1_detect = self._make_layer(BasicBlock, 16, 2)
         self.convfinal_2 = nn.Conv2d(16, len(self.anchors2) * (self.detection_classes + 5), 1)
-        self.yolo2 = YOLOLayer(self.anchors2, self.detection_classes, 800)
+        self.yolo2 = YOLOLayer(self.anchors2, self.detection_classes, 800, device=device)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -281,5 +282,5 @@ class AutoNet(nn.Module):
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, detect_output2, total_loss
 
 
-def trainModel(anchors, freeze, detection_classes=9, scene_batch_size=4, batch_size=8, step_size=4):
-    return AutoNet(scene_batch_size, batch_size, step_size, anchors, detection_classes, freeze)
+def trainModel(anchors, freeze=False, device=None):
+    return AutoNet(anchors, freeze=freeze, device=device)

@@ -33,7 +33,8 @@ long_cycle = 30
 short_cycle = 5
 start_lr = 0.002
 gamma = 0.25
-batch_size=8
+batch_size = 8
+
 
 def lambdaScheduler(epoch):
     if epoch == 0:

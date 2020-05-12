@@ -34,7 +34,7 @@ long_cycle = 40
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
-batch_size=8
+batch_size = 8
 pretrain_file = "pretrainfinal.pkl"
 
 
@@ -91,15 +91,16 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
             print(
                 'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
                     epoch, batch_idx * len(sample), len(train_loader.dataset),
-                           100. * batch_idx / len(train_loader.dataset), loss.item(), road_loss.item(), detection_loss.item(),
+                           100. * batch_idx / len(train_loader.dataset), loss.item(), road_loss.item(),
+                    detection_loss.item(),
                     AC, (model.yolo1.metrics['precision'] + model.yolo0.metrics['precision']) / 2,
                            (model.yolo1.metrics['recall50'] + model.yolo0.metrics['recall50']) / 2))
     print(
         'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
             epoch, len(train_loader.dataset), len(train_loader.dataset),
-                   100, loss.item(), road_loss.item(), detection_loss.item(), AC,
-                   (model.yolo1.metrics['precision'] + model.yolo0.metrics['precision']) / 2,
-                   (model.yolo1.metrics['recall50'] + model.yolo0.metrics['recall50']) / 2))
+            100, loss.item(), road_loss.item(), detection_loss.item(), AC,
+            (model.yolo1.metrics['precision'] + model.yolo0.metrics['precision']) / 2,
+            (model.yolo1.metrics['recall50'] + model.yolo0.metrics['recall50']) / 2))
 
 
 def test(model, device, test_loader):
@@ -172,14 +173,13 @@ if __name__ == '__main__':
 
     if pretrain_file is not None:
         model = bothModel.trainModel(anchors, freeze=True, device=device)
-        pretrain_dict = torch.load(pretrain_file,map_location=device)
+        pretrain_dict = torch.load(pretrain_file, map_location=device)
         model_dict = model.state_dict()
         pretrain_dict = {k: v for k, v in pretrain_dict.items() if
-                         (k in model_dict and re.search('^efficientNet.*', k) and (not  re.search('^efficientNet._fc.*', k)))}
+                         (k in model_dict and re.search('^efficientNet.*', k) and (
+                             not re.search('^efficientNet._fc.*', k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
-        #for para in model.efficientNet.parameters():
-        #   para.requires_grad = False
     else:
         model = bothModel.trainModel(anchors, freeze=False, device=device)
     model.to(device)
