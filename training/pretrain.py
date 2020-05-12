@@ -1,4 +1,3 @@
-
 import time
 
 import numpy as np
@@ -12,7 +11,6 @@ from dataset.dataHelper import UnlabeledDataset
 from model.pretrainModel import trainModel
 from utils.helper import collate_fn_unlabeled
 
-
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
@@ -25,7 +23,7 @@ annotation_csv = 'dataset/data/annotation.csv'
 # You shouldn't change the unlabeled_scene_index
 # The first 106 scenes are unlabeled
 
-unlabeled_scene_index = np.arange(134)
+unlabeled_scene_index = np.arange(2)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
@@ -77,12 +75,11 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
         # Print loss (uncomment lines below once implemented)
         if batch_idx % log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-
                 epoch, batch_idx * len(sample), len(train_loader.dataset),
                        100. * batch_idx / len(train_loader), loss.item()))
     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
         epoch, len(train_loader.dataset), len(train_loader.dataset),
-        100. * batch_idx / len(train_loader), loss.item()))
+        100, loss.item()))
 
 
 def test(model, device, test_loader):
