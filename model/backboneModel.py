@@ -1,7 +1,9 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-
+'''This implemention is based on Lukemelas's implemention https://github.com/lukemelas/EfficientNet-PyTorch.git and 
+Eriklindernoren's implementation https://github.com/eriklindernoren/PyTorch-YOLOv3.git with some revisement 
+Thank you very much'''
 from utils.efficientnet_utils import (
     round_filters,
     round_repeats,
