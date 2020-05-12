@@ -9,7 +9,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torchvision import transforms
 
-import model.bothModelFPN as bothModel
+import model.bothModelFPNlimited as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
 

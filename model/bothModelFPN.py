@@ -121,11 +121,7 @@ class AutoNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.ConvTranspose2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, nn.LSTM):
-                nn.init.xavier_normal_(m.all_weights[0][0])
-                nn.init.xavier_normal_(m.all_weights[0][1])
-                nn.init.xavier_normal_(m.all_weights[1][0])
-                nn.init.xavier_normal_(m.all_weights[1][1])
+
 
     def _make_layer(self, block, planes, blocks):
         layers = []

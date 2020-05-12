@@ -152,7 +152,7 @@ if __name__ == '__main__':
         model = roadModel.trainModel(freeze=False, device=device)
 
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1

@@ -79,11 +79,7 @@ class AutoNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.ConvTranspose2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, nn.LSTM):
-                nn.init.xavier_normal_(m.all_weights[0][0])
-                nn.init.xavier_normal_(m.all_weights[0][1])
-                nn.init.xavier_normal_(m.all_weights[1][0])
-                nn.init.xavier_normal_(m.all_weights[1][1])
+
 
     def _make_layer(self, block, planes, blocks):
         layers = []
@@ -106,8 +102,8 @@ class AutoNet(nn.Module):
 
     def forward(self, x, detection_target):
         x = x.view(-1, 3, 128, 160)
-        x = self.efficientNet(x)
-        x = x[3].view(x[3].size(0), 2, -1)
+        output_list = self.efficientNet(x)
+        x = output_list[3].view(output_list[3].size(0), 2, -1)
         mu = x[:, 0, :]
         logvar = x[:, 1, :]
         x = self.reparameterise(mu, logvar)

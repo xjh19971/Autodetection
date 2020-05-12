@@ -83,8 +83,8 @@ class AutoNet(nn.Module):
 
     def forward(self, x):
         x = x.view(-1, 3, 128, 160)
-        x = self.efficientNet(x)
-        x = x[3].view(x[3].size(0), 2, -1)
+        output_list = self.efficientNet(x)
+        x = output_list[3].view(output_list[3].size(0), 2, -1)
         mu = x[:, 0, :]
         logvar = x[:, 1, :]
         x = self.reparameterise(mu, logvar)

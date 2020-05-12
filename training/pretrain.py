@@ -131,12 +131,10 @@ if __name__ == '__main__':
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=0,
                                              collate_fn=collate_fn_unlabeled)
 
-    # sample, target, road_image, extra = iter(trainloader).next()
-    # print(torch.stack(sample).shape)
     model = trainModel()
     model.to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
