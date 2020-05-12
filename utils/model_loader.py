@@ -3,21 +3,18 @@ You need to implement all four functions in this file and also put your team inf
 Then you should submit the python file with your model class, the state_dict, and this file
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
 
 # import your model class
 # import ...
 
 # Put your transform function here, we will use it for our dataloader
-def get_transform(): 
+def get_transform():
     # return torchvision.transforms.Compose([
     # 
     # 
     # ])
     pass
+
 
 class ModelLoader():
     # Fill the information for your team
@@ -44,5 +41,5 @@ class ModelLoader():
     def get_binary_road_map(samples):
         # samples is a cuda tensor with size [batch_size, 6, 3, 256, 306]
         # You need to return a cuda tensor with size [batch_size, 800, 800] 
-        
+
         pass

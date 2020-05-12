@@ -1,7 +1,6 @@
 import math
 import re
 import time
-import os
 
 import numpy as np
 import torch
@@ -9,12 +8,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torchvision import transforms
-from torch.nn import DataParallel
 
-import model.bothModelFPNLSTM as bothModel
+import model.bothModelLSTM as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
-device="cuda:0"
+
+device = "cuda:0"
 torch.cuda.set_device(device)
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
@@ -29,11 +28,13 @@ unlabeled_scene_index = np.arange(106)
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
 start_epoch = 300
+final_epoch = 350
 long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
-pretrain_file = "pretrainfinal128noaug.pkl"
+batch_size = 8
+pretrain_file = "pretrainfinal.pkl"
 
 
 def get_anchors(anchors_path):
@@ -90,14 +91,14 @@ def train(model, train_loader, optimizer, epoch, log_interval=50):
                 'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
                     epoch, batch_idx * len(sample), len(train_loader.dataset),
                            100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(),
-                    AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] )/ 2,
-                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 2))
+                    AUC, (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision']) / 2,
+                           (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50']) / 2))
     print(
         'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tRoad Loss: {:.6f}\tDetection Loss: {:.6f}\tAccuracy: {:.6f}\tPrecision: {:.6f}\tRecall50: {:.6f}'.format(
-            epoch,len(train_loader.dataset), len(train_loader.dataset),
-                   100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), AUC, (
-                           model.yolo0.metrics['precision'] + model.yolo1.metrics['precision']) / 2,
-                   (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) /2 ))
+            epoch, len(train_loader.dataset), len(train_loader.dataset),
+            100. * batch_idx / len(train_loader), loss.item(), road_loss.item(), detection_loss.item(), AUC, (
+                    model.yolo0.metrics['precision'] + model.yolo1.metrics['precision']) / 2,
+            (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50']) / 2))
 
 
 def test(model, test_loader):
@@ -126,8 +127,8 @@ def test(model, test_loader):
             road_image = road_image.view(-1, 400, 400)
             _, predicted = torch.max(output0.data, 1)
             AUC += compute_ts_road_map(predicted, road_image)
-            P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision'] ) / 2
-            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50'] ) / 2
+            P += (model.yolo0.metrics['precision'] + model.yolo1.metrics['precision']) / 2
+            R += (model.yolo0.metrics['recall50'] + model.yolo1.metrics['recall50']) / 2
             batch_num += 1
             # Add number of correct predictions to total num_correct
         # Compute the average test_loss
@@ -143,15 +144,12 @@ def test(model, test_loader):
 
 if __name__ == '__main__':
 
-
     data_transforms = transforms.Compose([
-        # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160)),
         transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
-        # transforms.RandomHorizontalFlip(),
         transforms.Resize((400, 400)),
         transforms.ToTensor()
     ])
@@ -171,29 +169,26 @@ if __name__ == '__main__':
     testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
-    # sample, target, road_image, extra = iter(trainloader).next()
-    # print(torch.stack(sample).shape)
 
     if pretrain_file is not None:
-        model = bothModel.trainModel(anchors, freeze=True)
-        pretrain_dict = torch.load(pretrain_file)
+        model = bothModel.trainModel(device, anchors, freeze=True)
+        pretrain_dict = torch.load(pretrain_file, map_location=device)
         model_dict = model.state_dict()
         pretrain_dict = {k: v for k, v in pretrain_dict.items() if
-                         (k in model_dict and re.search('^efficientNet.*', k) and (not  re.search('^efficientNet._fc.*', k)))}
+                         (k in model_dict and re.search('^efficientNet.*', k) and (
+                             not re.search('^efficientNet._fc.*', k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
-        #for para in model.efficientNet.parameters():
-        #    para.requires_grad = False
     else:
-        model = bothModel.trainModel(anchors, freeze=False,device=device)
+        model = bothModel.trainModel(anchors, freeze=False, device=device)
 
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
-    model=model.cuda()
+    model = model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
 
     last_test_loss = 2
-    for epoch in range(1, 350 + 1):
+    for epoch in range(1, final_epoch + 1):
         # Train model
         start_time = time.time()
         train(model, trainloader, optimizer, epoch)
@@ -201,7 +196,7 @@ if __name__ == '__main__':
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'bothModelFPNpreFTLSTM.pkl')
+            torch.save(model.state_dict(), 'bothModelLSTM.pkl')
             last_test_loss = test_loss
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
@@ -209,5 +204,5 @@ if __name__ == '__main__':
     model = model.cuda()
     test_loss = test(model, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'bothModelFPNpreFTLSTM.pkl')
+        torch.save(model.state_dict(), 'bothModelLSTM.pkl')
         last_test_loss = test_loss

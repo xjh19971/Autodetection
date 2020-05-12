@@ -3,10 +3,11 @@ This file contains helper functions for building the model and for loading model
 These helper functions are built to mirror those in the official TensorFlow implementation.
 """
 
-import re
-import math
 import collections
+import math
+import re
 from functools import partial
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -50,6 +51,7 @@ class SwishImplementation(torch.autograd.Function):
 class MemoryEfficientSwish(nn.Module):
     def forward(self, x):
         return SwishImplementation.apply(x)
+
 
 class Swish(nn.Module):
     def forward(self, x):
@@ -303,7 +305,6 @@ url_map = {
     'efficientnet-b6': 'https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b6-c76e70fd.pth',
     'efficientnet-b7': 'https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b7-dcc49843.pth',
 }
-
 
 url_map_advprop = {
     'efficientnet-b0': 'https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b0-b64d5a18.pth',

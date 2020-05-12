@@ -1,4 +1,3 @@
-
 import time
 
 import numpy as np
@@ -12,7 +11,6 @@ from dataset.dataHelper import UnlabeledDataset
 from model.pretrainModel import trainModel
 from utils.helper import collate_fn_unlabeled
 
-
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
@@ -25,15 +23,17 @@ annotation_csv = 'dataset/data/annotation.csv'
 # You shouldn't change the unlabeled_scene_index
 # The first 106 scenes are unlabeled
 
-unlabeled_scene_index = np.arange(134)
+unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
 start_epoch = 150
+final_epoch = 200
 long_cycle = 30
 short_cycle = 5
-start_lr = 0.004
+start_lr = 0.002
 gamma = 0.25
+batch_size = 8
 
 
 def lambdaScheduler(epoch):
@@ -76,12 +76,11 @@ def train(model, device, train_loader, optimizer, epoch, log_interval=50):
         # Print loss (uncomment lines below once implemented)
         if batch_idx % log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-
                 epoch, batch_idx * len(sample), len(train_loader.dataset),
                        100. * batch_idx / len(train_loader), loss.item()))
     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
         epoch, len(train_loader.dataset), len(train_loader.dataset),
-        100. * batch_idx / len(train_loader), loss.item()))
+        100, loss.item()))
 
 
 def test(model, device, test_loader):
@@ -114,7 +113,7 @@ if __name__ == '__main__':
         transforms.ColorJitter(brightness=0.5),
         transforms.ColorJitter(contrast=0.5),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(degrees=30),
+        transforms.RandomRotation(degrees=10),
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160), 0),
         transforms.ToTensor()
@@ -127,17 +126,15 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(unlabeled_trainset, [int(0.95 * len(unlabeled_trainset)),
                                                                            len(unlabeled_trainset) - int(
                                                                                0.95 * len(unlabeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=0,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0,
                                               collate_fn=collate_fn_unlabeled)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=0,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=0,
                                              collate_fn=collate_fn_unlabeled)
 
-    # sample, target, road_image, extra = iter(trainloader).next()
-    # print(torch.stack(sample).shape)
     model = trainModel()
     model.to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-4)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     last_test_loss = 1
@@ -150,15 +147,9 @@ if __name__ == '__main__':
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'pretrainfinal.pkl')
             last_test_loss = test_loss
-        # if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
-        # optimizer.update_swa()
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    # optimizer.swap_swa_sgd()
-    model = model.cpu()
-    # optimizer.bn_update(trainloader, model)
-    model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
         torch.save(model.state_dict(), 'pretrainfinal.pkl')
