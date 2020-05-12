@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from model.EfficientNetBackbone import EfficientNet
+from model.backboneModel import EfficientNet
 
 
 def conv3x3(in_planes, out_planes, stride=1):

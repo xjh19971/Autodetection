@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
-
+import torchvision
 from utils.helper import convert_map_to_lane_map, convert_map_to_road_map
-
+import matplotlib.pyplot as plt
 NUM_SAMPLE_PER_SCENE = 126
 NUM_IMAGE_PER_SAMPLE = 6
 image_names = [
@@ -61,6 +61,9 @@ class UnlabeledDataset(torch.utils.data.Dataset):
             for image_name in image_names:
                 image_path = os.path.join(sample_path, image_name)
                 image = Image.open(image_path)
+                #image = torchvision.transforms.ToPILImage()(self.transform(image))
+                #plt.imshow(image)
+                #plt.show()
                 images.append(self.transform(image))
             image_tensor = torch.stack(images)
 

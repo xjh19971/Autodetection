@@ -30,9 +30,10 @@ unlabeled_scene_index = np.arange(134)
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
 start_epoch = 150
+final_epoch = 200
 long_cycle = 30
 short_cycle = 5
-start_lr = 0.004
+start_lr = 0.002
 gamma = 0.25
 
 
@@ -114,7 +115,7 @@ if __name__ == '__main__':
         transforms.ColorJitter(brightness=0.5),
         transforms.ColorJitter(contrast=0.5),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(degrees=30),
+        transforms.RandomRotation(degrees=10),
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160), 0),
         transforms.ToTensor()
@@ -150,14 +151,10 @@ if __name__ == '__main__':
         if last_test_loss > test_loss:
             torch.save(model.state_dict(), 'pretrainfinal.pkl')
             last_test_loss = test_loss
-        # if epoch >= start_epoch and (epoch + 1) % short_cycle == 0:
-        # optimizer.update_swa()
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    # optimizer.swap_swa_sgd()
     model = model.cpu()
-    # optimizer.bn_update(trainloader, model)
     model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):

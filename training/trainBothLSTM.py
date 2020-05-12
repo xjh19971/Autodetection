@@ -11,7 +11,7 @@ from torch.optim import lr_scheduler
 from torchvision import transforms
 from torch.nn import DataParallel
 
-import model.bothModelFPNhugeLSTM as bothModel
+import model.bothModelLSTM as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
 device="cuda:0"
@@ -166,9 +166,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=5, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=5, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
     # sample, target, road_image, extra = iter(trainloader).next()
@@ -201,7 +201,7 @@ if __name__ == '__main__':
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         scheduler.step(epoch)
         if last_test_loss > test_loss:
-            torch.save(model.state_dict(), 'bothModelFPNhugeFTLSTM.pkl')
+            torch.save(model.state_dict(), 'bothModelLSTM.pkl')
             last_test_loss = test_loss
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
@@ -209,5 +209,5 @@ if __name__ == '__main__':
     model = model.cuda()
     test_loss = test(model, testloader)
     if (last_test_loss > test_loss):
-        torch.save(model.state_dict(), 'bothModelFPNhugeFTLSTM.pkl')
+        torch.save(model.state_dict(), 'bothModelLSTM.pkl')
         last_test_loss = test_loss
