@@ -23,7 +23,7 @@ annotation_csv = 'dataset/data/annotation.csv'
 # You shouldn't change the unlabeled_scene_index
 # The first 106 scenes are unlabeled
 
-unlabeled_scene_index = np.arange(2)
+unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
@@ -33,7 +33,7 @@ long_cycle = 30
 short_cycle = 5
 start_lr = 0.002
 gamma = 0.25
-
+batch_size=8
 
 def lambdaScheduler(epoch):
     if epoch == 0:
@@ -125,9 +125,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(unlabeled_trainset, [int(0.95 * len(unlabeled_trainset)),
                                                                            len(unlabeled_trainset) - int(
                                                                                0.95 * len(unlabeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=0,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0,
                                               collate_fn=collate_fn_unlabeled)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=0,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=0,
                                              collate_fn=collate_fn_unlabeled)
 
     # sample, target, road_image, extra = iter(trainloader).next()
@@ -151,8 +151,6 @@ if __name__ == '__main__':
         print('lr=' + str(optimizer.param_groups[0]['lr']) + '\n')
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    model = model.cpu()
-    model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
         torch.save(model.state_dict(), 'pretrainfinal.pkl')

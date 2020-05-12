@@ -27,13 +27,14 @@ anchor_file = 'yolo_anchors.txt'
 unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
-labeled_scene_index = np.arange(132, 134)
+labeled_scene_index = np.arange(106, 134)
 start_epoch = 200
 final_epoch = 250
 long_cycle = 40
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
+batch_size=8
 pretrain_file = "pretrainfinal.pkl"
 
 
@@ -163,19 +164,24 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
 
-    model = bothModel.trainModel(anchors,device=device)
     if pretrain_file is not None:
-        pretrain_dict = torch.load(pretrain_file, map_location=device)
+        model = bothModel.trainModel(anchors, freeze=True, device=device)
+        pretrain_dict = torch.load(pretrain_file,map_location=device)
         model_dict = model.state_dict()
-        pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and re.search('^efficientNet.*', k)}
+        pretrain_dict = {k: v for k, v in pretrain_dict.items() if
+                         (k in model_dict and re.search('^efficientNet.*', k) and (not  re.search('^efficientNet._fc.*', k)))}
         model_dict.update(pretrain_dict)
         model.load_state_dict(model_dict)
+        #for para in model.efficientNet.parameters():
+        #   para.requires_grad = False
+    else:
+        model = bothModel.trainModel(anchors, freeze=False, device=device)
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=1e-8)
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
@@ -194,10 +200,6 @@ if __name__ == '__main__':
             last_test_loss = test_loss
         end_time = time.time()
         print("total_time=" + str(end_time - start_time) + '\n')
-    # optimizer.swap_swa_sgd()
-    model = model.cpu()
-    # optimizer.bn_update(trainloader, model)
-    model.to(device)
     test_loss = test(model, device, testloader)
     if (last_test_loss > test_loss):
         torch.save(model.state_dict(), 'bothModel.pkl')

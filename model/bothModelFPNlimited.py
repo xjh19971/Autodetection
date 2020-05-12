@@ -5,15 +5,11 @@ import torch.nn as nn
 from model.backboneModel import EfficientNet,YOLOLayer,BasicBlock
 
 class AutoNet(nn.Module):
-    def __init__(self, scene_batch_size, batch_size, step_size, anchors, detection_classes, num_classes=2,
-                 freeze=True):
+    def __init__(self, anchors, detection_classes,
+                 freeze=True,device=None):
         self.latent = 1000
         self.fc_num1 = 100
         self.fc_num2 = 100
-        self.batch_size = batch_size
-        self.step_size = step_size
-        self.scene_batch_size = scene_batch_size
-        self.num_classes = num_classes
         self.anchors = anchors
         self.anchors2 = np.reshape(anchors[0], [1, 2])
         self.anchors1 = anchors[1:5, :]

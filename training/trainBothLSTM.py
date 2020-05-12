@@ -33,7 +33,8 @@ long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
 gamma = 0.25
-pretrain_file = "pretrainfinal128noaug.pkl"
+batch_size=8
+pretrain_file = "pretrainfinal.pkl"
 
 
 def get_anchors(anchors_path):
