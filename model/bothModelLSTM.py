@@ -120,7 +120,7 @@ class AutoNet(nn.Module):
         x = x.view(scene * step, self.fc_num * 6)
         return x
 
-    def forward(self, x, detection_target):
+    def forward(self, x, detection_target=None):
         # (S,B,18,H,W)
         scene = x.size(0)
         step = x.size(1)

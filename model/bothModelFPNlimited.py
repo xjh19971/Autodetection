@@ -178,7 +178,7 @@ class AutoNet(nn.Module):
                 output[:, :, 24:, :28] += block(x[:, i, :]).view(x.size(0), -1, 26, 28)
         return output
 
-    def forward(self, x, detection_target):
+    def forward(self, x, detection_target=None):
         x = x.view(-1, 3, 128, 160)
         output_list = self.efficientNet(x)
         x1 = output_list[3].view(output_list[3].size(0), 2, -1)

@@ -1,18 +1,13 @@
-import os
-import random
 import argparse
+import random
 
 import numpy as np
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
+from torchvision import transforms
 
-from data_helper import LabeledDataset
-from helper import compute_ats_bounding_boxes, compute_ts_road_map
-
-from model_loader import get_transform_task1, get_transform_task2, ModelLoader
+from dataset.dataHelper import LabeledDataset
+from predict.helper import compute_ats_bounding_boxes, compute_ts_road_map
+from predict.model_loader import get_transform_task1, get_transform_task2, ModelLoader
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -23,7 +18,7 @@ torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', type=str, default='data')
+parser.add_argument('--data_dir', type=str, default='dataset/data')
 parser.add_argument('--testset', action='store_true')
 parser.add_argument('--verbose', action='store_true')
 opt = parser.parse_args()
@@ -34,7 +29,7 @@ annotation_csv = f'{opt.data_dir}/annotation.csv'
 if opt.testset:
     labeled_scene_index = np.arange(134, 148)
 else:
-    labeled_scene_index = np.arange(120, 134)
+    labeled_scene_index = np.arange(132, 134)
 
 # For bounding boxes task
 labeled_trainset_task1 = LabeledDataset(
@@ -42,6 +37,7 @@ labeled_trainset_task1 = LabeledDataset(
     annotation_file=annotation_csv,
     scene_index=labeled_scene_index,
     transform=get_transform_task1(),
+    roadmap_transform=transforms.ToTensor(),
     extra_info=False
 )
 dataloader_task1 = torch.utils.data.DataLoader(
@@ -56,6 +52,7 @@ labeled_trainset_task2 = LabeledDataset(
     annotation_file=annotation_csv,
     scene_index=labeled_scene_index,
     transform=get_transform_task2(),
+    roadmap_transform=transforms.ToTensor(),
     extra_info=False
 )
 dataloader_task2 = torch.utils.data.DataLoader(
@@ -65,7 +62,7 @@ dataloader_task2 = torch.utils.data.DataLoader(
     num_workers=4
 )
 
-if __name__=='__main__':
+if __name__ == '__main__':
     model_loader = ModelLoader()
 
     total = 0
@@ -97,13 +94,3 @@ if __name__=='__main__':
 
     print(
         f'{model_loader.team_name} - {model_loader.round_number} - Bounding Box Score: {total_ats_bounding_boxes / total:.4} - Road Map Score: {total_ts_road_map / total:.4}')
-
-
-
-
-
-
-
-
-
-

@@ -6,7 +6,7 @@ step_size = 1
 
 def convert_map_to_lane_map(ego_map, binary_lane):
     mask = (ego_map[0, :, :] == ego_map[1, :, :]) * (ego_map[1, :, :] == ego_map[2, :, :]) + (
-                ego_map[0, :, :] == 250 / 255)
+            ego_map[0, :, :] == 250 / 255)
 
     if binary_lane:
         return (~ mask)

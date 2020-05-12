@@ -100,7 +100,7 @@ class AutoNet(nn.Module):
     def reparameterise(self, mu, logvar):
         return mu
 
-    def forward(self, x, detection_target):
+    def forward(self, x, detection_target=None):
         x = x.view(-1, 3, 128, 160)
         output_list = self.efficientNet(x)
         x = output_list[3].view(output_list[3].size(0), 2, -1)

@@ -7,8 +7,8 @@ from model.backboneModel import EfficientNet, YOLOLayer, BasicBlock
 
 class AutoNet(nn.Module):
     def __init__(self, anchors, detection_classes, freeze=False, device=None):
-        self.fc_num1 = 100
-        self.fc_num2 = 100
+        self.fc_num1 = 200
+        self.fc_num2 = 120
         self.device = device
         self.anchors = anchors
         self.anchors1 = np.reshape(anchors[0], [1, 2])
@@ -139,7 +139,7 @@ class AutoNet(nn.Module):
         layers.append(nn.ReLU(inplace=True))
         return nn.Sequential(*layers)
 
-    def forward(self, x, detection_target):
+    def forward(self, x, detection_target=None):
         x = x.view(-1, 3, 128, 160)
         output_list = self.efficientNet(x)
         feature1 = output_list[2].view(output_list[2].size(0), -1)
@@ -213,3 +213,6 @@ class AutoNet(nn.Module):
 
 def trainModel(anchors, freeze=False, device=None, detection_class=9):
     return AutoNet(anchors, detection_class, freeze=freeze, device=device)
+
+def testModel(anchors, detection_classes=9):
+    return AutoNet(anchors, detection_classes)

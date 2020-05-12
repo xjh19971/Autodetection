@@ -1,15 +1,11 @@
 import os
+
+import pandas as pd
+import torch
+import torchvision
 from PIL import Image
 
-import numpy as np
-import pandas as pd
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-
-from helper import convert_map_to_lane_map, convert_map_to_road_map
+from predict.helper import convert_map_to_lane_map, convert_map_to_road_map
 
 NUM_SAMPLE_PER_SCENE = 126
 NUM_IMAGE_PER_SAMPLE = 6
@@ -143,4 +139,3 @@ class LabeledDataset(torch.utils.data.Dataset):
 
         else:
             return image_tensor, target, road_image
-
