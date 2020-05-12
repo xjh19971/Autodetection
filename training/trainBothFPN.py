@@ -26,7 +26,7 @@ anchor_file = 'yolo_anchors.txt'
 unlabeled_scene_index = np.arange(106)
 # The scenes from 106 - 133 are labeled
 # You should devide the labeled_scene_index into two subsets (training and validation)
-labeled_scene_index = np.arange(132, 134)
+labeled_scene_index = np.arange(106, 134)
 start_epoch = 400
 long_cycle = 80
 short_cycle = 5

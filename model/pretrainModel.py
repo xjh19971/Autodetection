@@ -78,7 +78,7 @@ class AutoPretrainNet(nn.Module):
         x = self.reparameterise(mu, logvar)
         x = self.fc2(x)
         x = x.reshape(x.size(0), -1, 4, 5)
-        x = self.deconv0(x)  # detection
+        x = self.deconv0(x)
         x = self.conv0(x)
         x = self.deconv1(x)
         x = self.conv1(x)

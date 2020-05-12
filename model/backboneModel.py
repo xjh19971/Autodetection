@@ -1,5 +1,17 @@
-import torch.nn as nn
+import torch
+from torch import nn
+from torch.nn import functional as F
 
+from utils.efficientnet_utils import (
+    round_filters,
+    round_repeats,
+    drop_connect,
+    get_same_padding_conv2d,
+    get_model_params,
+    efficientnet_params,
+    Swish,
+    MemoryEfficientSwish,
+)
 from utils.yolo_utils import build_targets, to_cpu
 
 
@@ -39,22 +51,6 @@ class BasicBlock(nn.Module):
         out = self.relu(out)
 
         return out
-
-
-import torch
-from torch import nn
-from torch.nn import functional as F
-
-from utils.efficientnet_utils import (
-    round_filters,
-    round_repeats,
-    drop_connect,
-    get_same_padding_conv2d,
-    get_model_params,
-    efficientnet_params,
-    Swish,
-    MemoryEfficientSwish,
-)
 
 
 class MBConvBlock(nn.Module):

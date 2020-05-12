@@ -158,7 +158,7 @@ class AutoNet(nn.Module):
         x1 = self.fc2_1_1(x1)
         x1 = x1.view(x1.size(0), -1, 25, 25)
         x1 = self.conv0(x1)
-        x1 = self.deconv0(x1)  # detection
+        x1 = self.deconv0(x1)
 
         x1_1 = torch.cat(
             [featurefc1_1[:, self.fc_num1:self.fc_num1 * 2], featurefc2_1[:, self.fc_num1:self.fc_num1 * 2],
@@ -187,12 +187,12 @@ class AutoNet(nn.Module):
                        dim=1)
         x2 = x2.view(-1, self.fc_num2 * 6 * 3)
         x2 = self.fc2_2_1(x2)
-        x2 = x2.view(x2.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+        x2 = x2.view(x2.size(0), -1, 25, 25)
         x2 = self.conv0_1(x2)
         detect_output0 = self.conv0_1_detect(x2)
         detect_output0 = self.convfinal_0(detect_output0)
         detect_output0, detect_loss0 = self.yolo0(detect_output0, detection_target, 800)
-        x2 = self.deconv0_1(x2)  # detection
+        x2 = self.deconv0_1(x2)
 
         x2_1 = torch.cat(
             [featurefc1_2[:, self.fc_num2:self.fc_num2 * 2], featurefc2_2[:, self.fc_num2:self.fc_num2 * 2],

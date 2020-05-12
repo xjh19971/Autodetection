@@ -91,13 +91,13 @@ class AutoNet(nn.Module):
         x = self.fc1(x)
         x = x.view(-1, 6 * self.fc_num)
         x = self.fc2(x)
-        x = x.view(x.size(0), -1, 25, 25)  # x = x.view(x.size(0)*6,-1,128,160)
+        x = x.view(x.size(0), -1, 25, 25)
         x = self.conv0(x)
-        x = self.deconv0(x)  # detection
+        x = self.deconv0(x)
         x = self.conv1(x)
         x = self.deconv1(x)
         x = self.conv2(x)
-        x = self.deconv2(x)  # resize conv conv resize conv conv
+        x = self.deconv2(x)
         x = self.conv3(x)
         x = self.deconv3(x)
         x = self.convfinal(x)

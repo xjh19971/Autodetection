@@ -28,6 +28,7 @@ unlabeled_scene_index = np.arange(106)
 # You should devide the labeled_scene_index into two subsets (training and validation)
 labeled_scene_index = np.arange(106, 134)
 start_epoch = 300
+final_epoch = 350
 long_cycle = 60
 short_cycle = 5
 start_lr = 0.01
@@ -144,13 +145,11 @@ def test(model, test_loader):
 if __name__ == '__main__':
 
     data_transforms = transforms.Compose([
-        # transforms.RandomHorizontalFlip(),
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160)),
         transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
-        # transforms.RandomHorizontalFlip(),
         transforms.Resize((400, 400)),
         transforms.ToTensor()
     ])
@@ -165,9 +164,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=8,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=True, num_workers=8,
                                              collate_fn=collate_fn_lstm)
     anchors = get_anchors(anchor_file)
 
@@ -189,7 +188,7 @@ if __name__ == '__main__':
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambdaScheduler)
 
     last_test_loss = 2
-    for epoch in range(1, 350 + 1):
+    for epoch in range(1, final_epoch + 1):
         # Train model
         start_time = time.time()
         train(model, trainloader, optimizer, epoch)
