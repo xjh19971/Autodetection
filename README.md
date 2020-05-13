@@ -39,3 +39,8 @@ If you want to train LSTMmodel, make sure step_sizes in helper.py and bothModelL
 
 
 <img src="results/result (3).jpg" alt="img" style="zoom:50%;" /><img src="results/result (4).jpg" alt="img" style="zoom:50%;" />
+
+## Acknowledgemet
+
+The implemention of EfficientNet and YOLOv3 layeris based on Lukemelas's implemention https://github.com/lukemelas/EfficientNet-PyTorch.git and Eriklindernoren's implementation https://github.com/eriklindernoren/PyTorch-YOLOv3.git with some revisement.
+Thank you very much!
