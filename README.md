@@ -32,6 +32,8 @@ python training/trainBothFPN.py
 
 If you want to train LSTMmodel, make sure step_sizes in helper.py and bothModelLSTM.py are the same and scene_batch_size in trainBothLSTM.py and bothModelLSTM.py (batch_size in trainModel function) are the same.
 
+To train from pretrained model, set pretrain_file in train***.py. Otherwise, set pretrain_file = None.
+
 ## Results
 
 <img src="results/result (1).jpg" alt="img" style="zoom: 50%;" /><img src="results/result (2).jpg" alt="img" style="zoom:50%;" />
