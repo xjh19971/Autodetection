@@ -15,7 +15,8 @@ class AutoNet(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
         self.latent = 600
-        self.fc_num = 300
+        self.fc_num1 = 300
+        self.fc_num2 = 300
         self.hparams = hparams
         self.learning_rate = hparams.learning_rate
         self.anchors = get_anchors(hparams.anchors_file)
@@ -29,7 +30,7 @@ class AutoNet(pl.LightningModule):
             nn.Linear(in_features=feature, out_features=2 * self.latent),
         )
         self.fc1 = nn.Sequential(
-            nn.Linear(self.latent, self.fc_num, bias=False),
+            nn.Linear(self.latent, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
@@ -51,7 +52,7 @@ class AutoNet(pl.LightningModule):
                     nn.Dropout(0.25),
                 ))
         self.fc1_1 = nn.Sequential(
-            nn.Linear(self.latent, self.fc_num, bias=False),
+            nn.Linear(self.latent, self.fc_num2, bias=False),
             nn.BatchNorm1d(self.fc_num),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
@@ -60,14 +61,14 @@ class AutoNet(pl.LightningModule):
         for i in range(6):
             if i != 1 and i != 4:
                 self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1, 14 * 13 * 64, bias=False),
+                    nn.Linear(self.fc_num2, 14 * 13 * 64, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
             else:
                 self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1, 13 * 18 * 64, bias=False),
+                    nn.Linear(self.fc_num2, 13 * 18 * 64, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
@@ -198,7 +199,8 @@ class AutoNet(pl.LightningModule):
         AC = compute_ts_road_map(predicted, road_image)
         P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
         R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
-        log = {'roadmap_score': AC, 'precision': P, 'recall': R}
+        lr = torch.tensor(self.trainer.optimizers[0].param_groups[0]['lr'])
+        log = {'roadmap_score': AC, 'precision': P, 'recall': R, 'lr':lr}
         return {'loss': loss, 'log': log, 'progress_bar': log}
 
     def validation_step(self, batch, batch_idx):
