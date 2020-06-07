@@ -45,14 +45,14 @@ class AutoNet(pl.LightningModule):
                     nn.Linear(self.fc_num1, 14 * 13 * 32, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
-                    #nn.Dropout(0.25),
+                    nn.Dropout(0.1),
                 ))
             else:
                 self.fc2.append(nn.Sequential(
                     nn.Linear(self.fc_num1, 13 * 18 * 32, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
-                    #nn.Dropout(0.25),
+                    nn.Dropout(0.1),
                 ))
         self.fc1_1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num2, bias=False),
@@ -67,14 +67,14 @@ class AutoNet(pl.LightningModule):
                     nn.Linear(self.fc_num2, 14 * 13 * 32, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
-                    #nn.Dropout(0.25),
+                    nn.Dropout(0.1),
                 ))
             else:
                 self.fc2_1.append(nn.Sequential(
                     nn.Linear(self.fc_num2, 13 * 18 * 32, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
-                    #nn.Dropout(0.25),
+                    nn.Dropout(0.1),
                 ))
         self.inplanes = 32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
