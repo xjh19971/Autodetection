@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import torch
 from torchvision import transforms
 
-import model.bothModel as bothModel
+import model.bothModelLimited as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm
 # All the images are saved in image_folder
@@ -55,5 +55,6 @@ if __name__ == '__main__':
                                              collate_fn=collate_fn_lstm)
 
     model = bothModel.trainModel(args1)
+    print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))
     trainer = pl.Trainer.from_argparse_args(args1)
     trainer.fit(model, train_dataloader=trainloader, val_dataloaders=testloader)
