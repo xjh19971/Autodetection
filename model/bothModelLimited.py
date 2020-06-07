@@ -26,8 +26,12 @@ class AutoNet(pl.LightningModule):
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=hparams.freeze)
         feature = self.efficientNet._fc.in_features
+        feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=2 * self.latent),
+            nn.Linear(in_features=feature, out_features=self.latent),
+            nn.BatchNorm1d(self.latent),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
         )
         self.fc1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num1, bias=False),
@@ -126,9 +130,6 @@ class AutoNet(pl.LightningModule):
         layers.append(nn.ReLU(inplace=True))
         return nn.Sequential(*layers)
 
-    def reparameterise(self, mu, logvar):
-        return mu
-
     def limitedFC1(self, x, fc, filter):
         output = torch.zeros((x.size(0) // 6, filter, 25, 25))
         x = x.view(x.size(0) // 6, 6, -1)
@@ -150,10 +151,7 @@ class AutoNet(pl.LightningModule):
     def forward(self, x, detection_target=None):
         x = x.view(-1, 3, 128, 160)
         output_list = self.efficientNet(x)
-        x = output_list[3].view(output_list[3].size(0), 2, -1)
-        mu = x[:, 0, :]
-        logvar = x[:, 1, :]
-        x = self.reparameterise(mu, logvar)
+        x = output_list[3].view(output_list[3].size(0), -1)
 
         x1 = self.fc1(x)
         x1 = self.limitedFC1(x1, self.fc2, 32)
