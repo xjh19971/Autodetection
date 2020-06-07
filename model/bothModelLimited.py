@@ -167,7 +167,7 @@ class AutoNet(pl.LightningModule):
         x1 = self.convfinal(x1)
 
         x2 = self.fc1_1(x)
-        x2 = self.limitedFC1(x2, self.fc2_1, 64)
+        x2 = self.limitedFC1(x2, self.fc2_1, 32)
         x2 = self.conv0_1(x2)
         detect_output0 = self.conv0_1_detect(x2)
         detect_output0 = self.convfinal_0(detect_output0)
