@@ -198,7 +198,7 @@ class AutoNet(pl.LightningModule):
         P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
         R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
         lr = torch.tensor(self.trainer.optimizers[0].param_groups[0]['lr'])
-        log = {'roadmap_score': AC, 'precision': P, 'recall': R, 'lr':lr}
+        log = {'loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R, 'lr': lr}
         return {'loss': loss, 'log': log, 'progress_bar': log}
 
     def validation_step(self, batch, batch_idx):
@@ -214,7 +214,7 @@ class AutoNet(pl.LightningModule):
         AC = compute_ts_road_map(predicted, road_image)
         P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
         R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
-        log = {'loss':loss,'roadmap_score': AC, 'precision': P, 'recall': R}
+        log = {'val_loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R}
         return {'val_loss': loss, 'log': log, 'progress_bar': log}
 
     def validation_epoch_end(self, outputs):
