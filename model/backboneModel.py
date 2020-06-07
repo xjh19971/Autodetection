@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+import pytorch_lightning as pl
 '''This implemention is based on Lukemelas's implemention https://github.com/lukemelas/EfficientNet-PyTorch.git and 
 Eriklindernoren's implementation https://github.com/eriklindernoren/PyTorch-YOLOv3.git with some revisement 
 Thank you very much'''
@@ -23,7 +24,7 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
-class BasicBlock(nn.Module):
+class BasicBlock(pl.LightningModule):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
@@ -55,7 +56,7 @@ class BasicBlock(nn.Module):
         return out
 
 
-class MBConvBlock(nn.Module):
+class MBConvBlock(pl.LightningModule):
     """
     Mobile Inverted Residual Bottleneck Block
     Args:
@@ -137,7 +138,7 @@ class MBConvBlock(nn.Module):
         self._swish = MemoryEfficientSwish() if memory_efficient else Swish()
 
 
-class EfficientNet(nn.Module):
+class EfficientNet(pl.LightningModule):
     """
     An EfficientNet model. Most easily loaded with the .from_name or .from_pretrained methods
     Args:
@@ -291,10 +292,10 @@ class EfficientNet(nn.Module):
             raise ValueError('model_name should be one of: ' + ', '.join(valid_models))
 
 
-class YOLOLayer(nn.Module):
+class YOLOLayer(pl.LightningModule):
     """Detection layer"""
 
-    def __init__(self, anchors, num_classes, img_dim=800, device=None):
+    def __init__(self, anchors, num_classes, img_dim=800):
         super(YOLOLayer, self).__init__()
         self.anchors = anchors
         self.num_anchors = len(anchors)
@@ -307,8 +308,6 @@ class YOLOLayer(nn.Module):
         self.metrics = {}
         self.img_dim = img_dim
         self.grid_size = 0  # grid size
-        if device is not None:
-            torch.cuda.set_device(device)
 
     def compute_grid_offsets(self, grid_size, cuda=True):
         self.grid_size = grid_size

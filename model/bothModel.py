@@ -1,20 +1,28 @@
+from argparse import ArgumentParser
+
 import numpy as np
+import pytorch_lightning as pl
+import torch
 import torch.nn as nn
+import torch.optim as optim
 
 from model.backboneModel import EfficientNet, YOLOLayer, BasicBlock
+from utils.helper import compute_ts_road_map
+from utils.yolo_utils import get_anchors
 
 
-class AutoNet(nn.Module):
-    def __init__(self, anchors, detection_classes, device=None, freeze=False):
+class AutoNet(pl.LightningModule):
+    def __init__(self, hparams):
+        super().__init__()
         self.latent = 1000
         self.fc_num = 400
-        self.device = device
-        self.anchors = anchors
-        self.anchors1 = np.reshape(anchors[0], [1, 2])
-        self.anchors0 = anchors[1:]
-        self.detection_classes = detection_classes
+        self.learning_rate = hparams.learning_rate
+        self.anchors = get_anchors(hparams.anchors_file)
+        self.anchors1 = np.reshape(self.anchors[0], [1, 2])
+        self.anchors0 = self.anchors[1:]
+        self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=freeze)
+        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=hparams.freeze)
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=2 * self.latent),
@@ -60,7 +68,7 @@ class AutoNet(nn.Module):
         self.inplanes = 64
         self.conv0_1_detect = self._make_layer(BasicBlock, 64, 2)
         self.convfinal_0 = nn.Conv2d(64, len(self.anchors0) * (self.detection_classes + 5), 1)
-        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800, device=self.device)
+        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800)
         self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
         self.deconv0_1 = self._make_deconv_layer(64, 16)
         self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
@@ -68,7 +76,7 @@ class AutoNet(nn.Module):
         self.inplanes = 16
         self.conv1_1_detect = self._make_layer(BasicBlock, 16, 2)
         self.convfinal_1 = nn.Conv2d(16, len(self.anchors1) * (self.detection_classes + 5), 1)
-        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800, device=self.device)
+        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800)
         self.conv1_1 = self._make_layer(BasicBlock, 16, 2)
 
         for m in self.modules():
@@ -79,7 +87,6 @@ class AutoNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.ConvTranspose2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-
 
     def _make_layer(self, block, planes, blocks):
         layers = []
@@ -139,6 +146,68 @@ class AutoNet(nn.Module):
         total_loss = 0.6 * detect_loss0 + 0.4 * detect_loss1
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, total_loss
 
+    def loss_function(self, outputs, road_image):
+        road_loss = nn.NLLLoss()(outputs[0], road_image)
+        detection_loss = outputs[3]
+        loss = road_loss + detection_loss
+        return loss
 
-def trainModel(anchors, detection_classes=9, device=None, freeze=False):
-    return AutoNet(anchors, detection_classes, device=device, freeze=freeze)
+    def training_step(self, batch, batch_idx):
+        sample, bbox_list, category_list, road_image = batch
+        sample, road_image = sample, road_image
+        outputs = self(sample, [bbox_list, category_list])
+        loss = self.loss_function(outputs, road_image)
+        output0 = outputs[0].view(-1, 2, 400, 400)
+        road_image = road_image.view(-1, 400, 400)
+        _, predicted = torch.max(output0.data, 1)
+        AC = compute_ts_road_map(predicted, road_image)
+        P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
+        R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
+        log = {'roadmap_score': AC, 'precision': P, 'recall': R}
+        return {'loss': loss, 'log': log, 'progress_bar': log}
+
+    def validation_step(self, batch, batch_idx):
+        sample, bbox_list, category_list, road_image = batch
+        sample, road_image = sample, road_image
+        outputs = self(sample, [bbox_list, category_list])
+        loss = self.loss_function(outputs, road_image)
+        # Pass data through model
+        outputs = self(sample, [bbox_list, category_list])
+        output0 = outputs[0].view(-1, 2, 400, 400)
+        road_image = road_image.view(-1, 400, 400)
+        _, predicted = torch.max(output0.data, 1)
+        AC = compute_ts_road_map(predicted, road_image)
+        P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
+        R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
+        log = {'roadmap_score': AC, 'precision': P, 'recall': R}
+        return {'val_loss': loss, 'log': log}
+
+    def validation_epoch_end(self, outputs):
+        avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_AC = torch.stack([x['log']['roadmap_score'] for x in outputs]).mean()
+        avg_P = torch.stack([x['log']['precision'] for x in outputs]).mean()
+        avg_R = torch.stack([x['log']['recall'] for x in outputs]).mean()
+        log = {'avg_val_loss': avg_val_loss, 'avg_roadmap_score': avg_AC, 'avg_precision': avg_P, 'avg_recall': avg_R}
+        return {'log': log, 'val_loss': avg_val_loss}
+
+    def configure_optimizers(self):
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=1e-4)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.25)
+        return [optimizer], [scheduler]
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument('--anchors_file', type=str, default='yolo_anchors.txt')
+        parser.add_argument('--detection_classes', type=int, default=9)
+        parser.add_argument('--freeze', type=bool, default=False)
+        parser.add_argument('--learning_rate', type=float, default=0.01)
+        return parser
+
+
+def trainModel(args):
+    return AutoNet(args)
+
+
+def testModel(anchors, detection_classes=9):
+    return AutoNet(anchors, detection_classes)

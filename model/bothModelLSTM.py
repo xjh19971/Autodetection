@@ -3,8 +3,9 @@ import torch
 import torch.nn as nn
 
 from model.backboneModel import EfficientNet,YOLOLayer,BasicBlock
+import pytorch_lightning as pl
 
-class AutoNet(nn.Module):
+class AutoNet(pl.LightningModule):
     def __init__(self, batch_size, step_size, anchors, detection_classes,freeze=False, device=None):
         self.latent = 1000
         self.fc_num = 400

@@ -1,9 +1,9 @@
 import torch.nn as nn
 
 from model.backboneModel import EfficientNet, BasicBlock
+import pytorch_lightning as pl
 
-
-class AutoPretrainNet(nn.Module):
+class AutoPretrainNet(pl.LightningModule):
     def __init__(self, num_classes=3):
         self.latent = 1000
         self.num_classes = num_classes

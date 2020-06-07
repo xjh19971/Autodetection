@@ -12,6 +12,7 @@ from torchvision import transforms
 import model.bothModelLSTM as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm, compute_ts_road_map
+from utils.yolo_utils import get_anchors
 
 device = "cuda:0"
 torch.cuda.set_device(device)
@@ -37,12 +38,6 @@ batch_size = 8
 pretrain_file = "pretrainfinal.pkl"
 
 
-def get_anchors(anchors_path):
-    '''loads the anchors from a file'''
-    with open(anchors_path) as f:
-        anchors = f.readline()
-    anchors = [float(x) for x in anchors.split(',')]
-    return np.array(anchors).reshape(-1, 2)
 
 
 def lambdaScheduler(epoch):
