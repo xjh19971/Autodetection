@@ -27,9 +27,8 @@ if __name__ == '__main__':
     trainparser.add_argument('--batch_size',type=int, default=4)
     trainparser.set_defaults(gpus=1)
     trainparser.set_defaults(max_epochs=3000)
-    modelparser = bothModel.AutoNet.add_model_specific_args(trainparser)
+    trainparser = bothModel.AutoNet.add_model_specific_args(trainparser)
     args1 = trainparser.parse_args()
-    args2 = modelparser.parse_args()
     data_transforms = transforms.Compose([
         transforms.Pad((7, 0)),
         transforms.Resize((128, 160)),
@@ -55,6 +54,6 @@ if __name__ == '__main__':
     testloader = torch.utils.data.DataLoader(testset, batch_size=args1.batch_size, shuffle=False, num_workers=4,
                                              collate_fn=collate_fn_lstm)
 
-    model = bothModel.trainModel(args2)
+    model = bothModel.trainModel(args1)
     trainer = pl.Trainer.from_argparse_args(args1)
     trainer.fit(model, train_dataloader=trainloader, val_dataloaders=testloader)

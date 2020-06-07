@@ -108,7 +108,6 @@ class AutoNet(pl.LightningModule):
         layers.append(nn.ReLU(inplace=True))
         return nn.Sequential(*layers)
 
-
     def forward(self, x, detection_target=None):
         x = x.view(-1, 3, 128, 160)
         output_list = self.efficientNet(x)
@@ -162,7 +161,8 @@ class AutoNet(pl.LightningModule):
         AC = compute_ts_road_map(predicted, road_image)
         P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
         R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
-        log = {'roadmap_score': AC, 'precision': P, 'recall': R}
+        lr = torch.tensor(self.trainer.optimizers[0].param_groups[0]['lr'])
+        log = {'roadmap_score': AC, 'precision': P, 'recall': R, 'lr':lr}
         return {'loss': loss, 'log': log, 'progress_bar': log}
 
     def validation_step(self, batch, batch_idx):
@@ -191,7 +191,7 @@ class AutoNet(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=1e-4)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.25)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.25, verbose=True)
         return [optimizer], [scheduler]
 
     @staticmethod
