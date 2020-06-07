@@ -182,10 +182,10 @@ class AutoNet(pl.LightningModule):
         return {'val_loss': loss, 'progress_bar': log}
 
     def validation_epoch_end(self, outputs):
-        avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        avg_AC = torch.stack([x['log']['roadmap_score'] for x in outputs]).mean()
-        avg_P = torch.stack([x['log']['precision'] for x in outputs]).mean()
-        avg_R = torch.stack([x['log']['recall'] for x in outputs]).mean()
+        avg_val_loss = torch.stack([x['progress_bar']['val_loss'] for x in outputs]).mean()
+        avg_AC = torch.stack([x['progress_bar']['roadmap_score'] for x in outputs]).mean()
+        avg_P = torch.stack([x['progress_bar']['precision'] for x in outputs]).mean()
+        avg_R = torch.stack([x['progress_bar']['recall'] for x in outputs]).mean()
         log = {'avg_val_loss': avg_val_loss, 'avg_roadmap_score': avg_AC, 'avg_precision': avg_P, 'avg_recall': avg_R}
         return {'log': log, 'val_loss': avg_val_loss}
 
