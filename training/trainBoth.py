@@ -23,8 +23,8 @@ pretrain_file = None
 
 if __name__ == '__main__':
     parser1 = ArgumentParser()
-    trainparser = pl.Trainer.add_argparse_args(parser1, )
-    trainparser.add_argument('--batch_size', default=4)
+    trainparser = pl.Trainer.add_argparse_args(parser1)
+    trainparser.add_argument('--batch_size',type=int, default=4)
     trainparser.set_defaults(gpus=1)
     trainparser.set_defaults(max_epochs=3000)
     modelparser = bothModel.AutoNet.add_model_specific_args(trainparser)
