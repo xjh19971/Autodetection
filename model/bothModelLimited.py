@@ -14,9 +14,9 @@ from utils.yolo_utils import get_anchors
 class AutoNet(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
-        self.latent = 600
-        self.fc_num1 = 300
-        self.fc_num2 = 300
+        self.latent = 800
+        self.fc_num1 = 400
+        self.fc_num2 = 400
         self.hparams = hparams
         self.learning_rate = hparams.learning_rate
         self.anchors = get_anchors(hparams.anchors_file)
@@ -26,18 +26,17 @@ class AutoNet(pl.LightningModule):
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=hparams.freeze)
         feature = self.efficientNet._fc.in_features
-        feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=self.latent),
             nn.BatchNorm1d(self.latent),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc2 = nn.ModuleList([])
         for i in range(6):
@@ -46,20 +45,20 @@ class AutoNet(pl.LightningModule):
                     nn.Linear(self.fc_num1, 14 * 13 * 32, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    #nn.Dropout(0.25),
                 ))
             else:
                 self.fc2.append(nn.Sequential(
                     nn.Linear(self.fc_num1, 13 * 18 * 32, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    #nn.Dropout(0.25),
                 ))
         self.fc1_1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num2, bias=False),
             nn.BatchNorm1d(self.fc_num2),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(0.1),
         )
         self.fc2_1 = nn.ModuleList([])
         for i in range(6):
@@ -68,14 +67,14 @@ class AutoNet(pl.LightningModule):
                     nn.Linear(self.fc_num2, 14 * 13 * 32, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    #nn.Dropout(0.25),
                 ))
             else:
                 self.fc2_1.append(nn.Sequential(
                     nn.Linear(self.fc_num2, 13 * 18 * 32, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    #nn.Dropout(0.25),
                 ))
         self.inplanes = 32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
@@ -228,7 +227,7 @@ class AutoNet(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=1e-4)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.25)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.25, patience=20)
         return [optimizer], [scheduler]
 
     @staticmethod
