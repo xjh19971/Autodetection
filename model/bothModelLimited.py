@@ -34,24 +34,44 @@ class AutoNet(pl.LightningModule):
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
-        self.fc2 = nn.Sequential(
-            nn.Linear(self.fc_num * 6, 25 * 25 * 32, bias=False),
-            nn.BatchNorm1d(25 * 25 * 32),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-        )
+        self.fc2 = nn.ModuleList([])
+        for i in range(6):
+            if i != 1 and i != 4:
+                self.fc2.append(nn.Sequential(
+                    nn.Linear(self.fc_num1, 14 * 13 * 32, bias=False),
+                    nn.BatchNorm1d(14 * 13 * 32),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.25),
+                ))
+            else:
+                self.fc2.append(nn.Sequential(
+                    nn.Linear(self.fc_num1, 13 * 18 * 32, bias=False),
+                    nn.BatchNorm1d(13 * 18 * 32),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.25),
+                ))
         self.fc1_1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num, bias=False),
             nn.BatchNorm1d(self.fc_num),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
-        self.fc2_1 = nn.Sequential(
-            nn.Linear(self.fc_num * 6, 25 * 25 * 64, bias=False),
-            nn.BatchNorm1d(25 * 25 * 64),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-        )
+        self.fc2_1 = nn.ModuleList([])
+        for i in range(6):
+            if i != 1 and i != 4:
+                self.fc2.append(nn.Sequential(
+                    nn.Linear(self.fc_num1, 14 * 13 * 64, bias=False),
+                    nn.BatchNorm1d(14 * 13 * 32),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.25),
+                ))
+            else:
+                self.fc2.append(nn.Sequential(
+                    nn.Linear(self.fc_num1, 13 * 18 * 64, bias=False),
+                    nn.BatchNorm1d(13 * 18 * 32),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.25),
+                ))
         self.inplanes = 32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
         self.deconv0 = self._make_deconv_layer(32, 16)
@@ -108,6 +128,24 @@ class AutoNet(pl.LightningModule):
     def reparameterise(self, mu, logvar):
         return mu
 
+    def limitedFC1(self, x, fc, filter):
+        output = torch.zeros((x.size(0) // 6, filter, 25, 25))
+        x = x.view(x.size(0) // 6, 6, -1)
+        for i, block in enumerate(fc):
+            if i == 0:
+                output[:, :, :13, 11:] += block(x[:, i, :]).view(x.size(0), -1, 13, 14)
+            elif i == 1:
+                output[:, :, 4:22, 12:] += block(x[:, i, :]).view(x.size(0), -1, 18, 13)
+            elif i == 2:
+                output[:, :, 12:, 11:] += block(x[:, i, :]).view(x.size(0), -1, 13, 14)
+            elif i == 3:
+                output[:, :, :13, :14] += block(x[:, i, :]).view(x.size(0), -1, 13, 14)
+            elif i == 4:
+                output[:, :, 4:22, :13] += block(x[:, i, :]).view(x.size(0), -1, 18, 13)
+            elif i == 5:
+                output[:, :, 12:, :14] += block(x[:, i, :]).view(x.size(0), -1, 13, 14)
+        return output
+
     def forward(self, x, detection_target=None):
         x = x.view(-1, 3, 128, 160)
         output_list = self.efficientNet(x)
@@ -117,9 +155,7 @@ class AutoNet(pl.LightningModule):
         x = self.reparameterise(mu, logvar)
 
         x1 = self.fc1(x)
-        x1 = x1.view(-1, self.fc_num * 6)
-        x1 = self.fc2(x1)
-        x1 = x1.view(x1.size(0), -1, 25, 25)
+        x1 = self.limitedFC1(x1, self.fc2, 32)
         x1 = self.conv0(x1)
         x1 = self.deconv0(x1)
         x1 = self.conv1(x1)
@@ -131,9 +167,7 @@ class AutoNet(pl.LightningModule):
         x1 = self.convfinal(x1)
 
         x2 = self.fc1_1(x)
-        x2 = x2.view(-1, self.fc_num * 6)
-        x2 = self.fc2_1(x2)
-        x2 = x2.view(x2.size(0), -1, 25, 25)
+        x2 = self.limitedFC1(x2, self.fc2_1, 64)
         x2 = self.conv0_1(x2)
         detect_output0 = self.conv0_1_detect(x2)
         detect_output0 = self.convfinal_0(detect_output0)
