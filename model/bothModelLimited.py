@@ -35,7 +35,7 @@ class AutoNet(pl.LightningModule):
         )
         self.fc1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num1, bias=False),
-            nn.BatchNorm1d(self.fc_num),
+            nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
@@ -57,7 +57,7 @@ class AutoNet(pl.LightningModule):
                 ))
         self.fc1_1 = nn.Sequential(
             nn.Linear(self.latent, self.fc_num2, bias=False),
-            nn.BatchNorm1d(self.fc_num),
+            nn.BatchNorm1d(self.fc_num2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
@@ -131,7 +131,8 @@ class AutoNet(pl.LightningModule):
         return nn.Sequential(*layers)
 
     def limitedFC1(self, x, fc, filter):
-        output = torch.zeros((x.size(0) // 6, filter, 25, 25))
+        FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
+        output = FloatTensor(x.size(0) // 6, filter, 25, 25).fill_(0)
         x = x.view(x.size(0) // 6, 6, -1)
         for i, block in enumerate(fc):
             if i == 0:
@@ -198,8 +199,9 @@ class AutoNet(pl.LightningModule):
         P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
         R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
         lr = torch.tensor(self.trainer.optimizers[0].param_groups[0]['lr'])
-        log = {'loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R, 'lr': lr}
-        return {'loss': loss, 'log': log, 'progress_bar': log}
+        log_bar = {'roadmap_score': AC, 'precision': P, 'recall': R, 'lr': lr}
+        log={'loss': loss,'roadmap_score': AC, 'precision': P, 'recall': R, 'lr': lr}
+        return {'loss': loss, 'log': log, 'progress_bar': log_bar}
 
     def validation_step(self, batch, batch_idx):
         sample, bbox_list, category_list, road_image = batch
@@ -214,14 +216,13 @@ class AutoNet(pl.LightningModule):
         AC = compute_ts_road_map(predicted, road_image)
         P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
         R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
-        log = {'val_loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R}
-        return {'val_loss': loss, 'progress_bar': log}
+        return {'val_loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R}
 
     def validation_epoch_end(self, outputs):
-        avg_val_loss = torch.stack([x['progress_bar']['val_loss'] for x in outputs]).mean()
-        avg_AC = torch.stack([x['progress_bar']['roadmap_score'] for x in outputs]).mean()
-        avg_P = torch.stack([x['progress_bar']['precision'] for x in outputs]).mean()
-        avg_R = torch.stack([x['progress_bar']['recall'] for x in outputs]).mean()
+        avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_AC = torch.stack([x['roadmap_score'] for x in outputs]).mean()
+        avg_P = torch.stack([x['precision'] for x in outputs]).mean()
+        avg_R = torch.stack([x['recall'] for x in outputs]).mean()
         log = {'avg_val_loss': avg_val_loss, 'avg_roadmap_score': avg_AC, 'avg_precision': avg_P, 'avg_recall': avg_R}
         return {'log': log, 'val_loss': avg_val_loss}
 
