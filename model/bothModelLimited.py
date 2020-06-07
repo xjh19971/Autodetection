@@ -64,16 +64,16 @@ class AutoNet(pl.LightningModule):
         self.fc2_1 = nn.ModuleList([])
         for i in range(6):
             if i != 1 and i != 4:
-                self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num2, 14 * 13 * 64, bias=False),
-                    nn.BatchNorm1d(14 * 13 * 32),
+                self.fc2_1.append(nn.Sequential(
+                    nn.Linear(self.fc_num2, 14 * 13 * 32, bias=False),
+                    nn.BatchNorm1d(14 * 13 * 64),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
             else:
-                self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num2, 13 * 18 * 64, bias=False),
-                    nn.BatchNorm1d(13 * 18 * 32),
+                self.fc2_1.append(nn.Sequential(
+                    nn.Linear(self.fc_num2, 13 * 18 * 32, bias=False),
+                    nn.BatchNorm1d(13 * 18 * 64),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.25),
                 ))
@@ -91,13 +91,13 @@ class AutoNet(pl.LightningModule):
         self.deconv3 = self._make_deconv_layer(4, 2)
         self.convfinal = nn.Conv2d(2, 2, 1)
 
-        self.inplanes = 64
-        self.conv0_1_detect = self._make_layer(BasicBlock, 64, 2)
-        self.convfinal_0 = nn.Conv2d(64, len(self.anchors0) * (self.detection_classes + 5), 1)
+        self.inplanes = 32
+        self.conv0_1_detect = self._make_layer(BasicBlock, 32, 2)
+        self.convfinal_0 = nn.Conv2d(32, len(self.anchors0) * (self.detection_classes + 5), 1)
         self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800)
-        self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
-        self.deconv0_1 = self._make_deconv_layer(64, 16)
-        self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
+        self.conv0_1 = self._make_layer(BasicBlock, 32, 2)
+        self.deconv0_1 = self._make_deconv_layer(32, 16)
+        self.conv0_1 = self._make_layer(BasicBlock, 32, 2)
 
         self.inplanes = 16
         self.conv1_1_detect = self._make_layer(BasicBlock, 16, 2)
