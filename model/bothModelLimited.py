@@ -215,7 +215,7 @@ class AutoNet(pl.LightningModule):
         P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
         R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
         log = {'val_loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R}
-        return {'val_loss': loss, 'log': log, 'progress_bar': log}
+        return {'val_loss': loss, 'progress_bar': log}
 
     def validation_epoch_end(self, outputs):
         avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
