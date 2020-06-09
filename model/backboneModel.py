@@ -194,15 +194,15 @@ class EfficientNet(pl.LightningModule):
                         para.requires_grad = False
 
         # Head
-        in_channels = block_args.output_filters  # output of final block
-        out_channels = round_filters(1280, self._global_params)
-        self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+        #in_channels = block_args.output_filters  # output of final block
+        #out_channels = round_filters(1280, self._global_params)
+        #self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        #self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
 
         # Final linear layer
-        self._avg_pooling = nn.AdaptiveAvgPool2d(1)
-        self._dropout = nn.Dropout(self._global_params.dropout_rate)
-        self._fc = nn.Linear(out_channels, self._global_params.num_classes)
+        #self._avg_pooling = nn.AdaptiveAvgPool2d(1)
+        #self._dropout = nn.Dropout(self._global_params.dropout_rate)
+        #self._fc = nn.Linear(out_channels, self._global_params.num_classes)
         self._swish = MemoryEfficientSwish()
 
     def set_swish(self, memory_efficient=True):
@@ -248,7 +248,7 @@ class EfficientNet(pl.LightningModule):
             # if idx == 9 or idx == 21 or idx == 31: b4
             if idx == 7 or idx == 17 or idx == 25:
                 real_output.append(x)
-        x = self._swish(self._bn1(self._conv_head(x)))
+        #x = self._swish(self._bn1(self._conv_head(x)))
         real_output.append(x)
         return real_output
 
@@ -266,13 +266,13 @@ class EfficientNet(pl.LightningModule):
             x = self._fc(x)
         else:
             output = self.extract_features_FPN(inputs)
-            x = output[3]
+            # x = output[3]
             # Pooling and final linear layer
-            x = self._avg_pooling(x)
-            x = x.view(bs, -1)
-            x = self._dropout(x)
-            x = self._fc(x)
-            output[3] = x
+            # x = self._avg_pooling(x)
+            # x = x.view(bs, -1)
+            # x = self._dropout(x)
+            # x = self._fc(x)
+            # output[3] = x
             x = output
         return x
 
