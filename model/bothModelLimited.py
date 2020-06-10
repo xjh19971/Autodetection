@@ -23,7 +23,7 @@ class AutoNet(pl.LightningModule):
         self.anchors0 = self.anchors[1:]
         self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b1', freeze=hparams.freeze)
+        self.efficientNet = EfficientNet.from_name('efficientnet-b0', freeze=hparams.freeze)
         self.compressed = nn.Sequential(
             nn.Conv2d(320, 16, 1, bias=False),
             nn.BatchNorm2d(16),
