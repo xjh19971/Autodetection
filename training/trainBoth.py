@@ -31,7 +31,7 @@ if __name__ == '__main__':
     args1 = trainparser.parse_args()
     data_transforms = transforms.Compose([
         transforms.Pad((7, 0)),
-        transforms.Resize((128, 160)),
+        #transforms.Resize((128, 160)),
         transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
@@ -49,9 +49,9 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args1.batch_size, shuffle=True, num_workers=4,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args1.batch_size, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=args1.batch_size, shuffle=False, num_workers=4,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=args1.batch_size, shuffle=False, num_workers=8,
                                              collate_fn=collate_fn_lstm)
 
     model = bothModel.trainModel(args1)

@@ -23,7 +23,7 @@ class AutoNet(pl.LightningModule):
         self.anchors0 = self.anchors[1:]
         self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=hparams.freeze)
+        self.efficientNet = EfficientNet.from_name('efficientnet-b1', freeze=hparams.freeze)
         feature = self.efficientNet._fc.in_features
         self.efficientNet._fc = nn.Sequential(
             nn.Linear(in_features=feature, out_features=self.latent),

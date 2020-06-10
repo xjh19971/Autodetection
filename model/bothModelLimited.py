@@ -23,15 +23,15 @@ class AutoNet(pl.LightningModule):
         self.anchors0 = self.anchors[1:]
         self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=hparams.freeze)
+        self.efficientNet = EfficientNet.from_name('efficientnet-b1', freeze=hparams.freeze)
         self.compressed = nn.Sequential(
-            nn.Conv2d(384, 32, 1, bias=False),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(320, 16, 1, bias=False),
+            nn.BatchNorm2d(16),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
         self.fc1 = nn.Sequential(
-            nn.Linear(32 * 4 * 5, self.fc_num1, bias=False),
+            nn.Linear(16 * 8 * 10, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
@@ -53,13 +53,13 @@ class AutoNet(pl.LightningModule):
                     nn.Dropout(0.2),
                 ))
         self.compressed_1 = nn.Sequential(
-            nn.Conv2d(384, 32, 1, bias=False),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(320, 16, 1, bias=False),
+            nn.BatchNorm2d(16),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
         self.fc1_1 = nn.Sequential(
-            nn.Linear(32 * 4 * 5, self.fc_num2, bias=False),
+            nn.Linear(16 * 8 * 10, self.fc_num2, bias=False),
             nn.BatchNorm1d(self.fc_num2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
@@ -69,14 +69,14 @@ class AutoNet(pl.LightningModule):
             if i != 1 and i != 4:
                 self.fc2_1.append(nn.Sequential(
                     nn.Linear(self.fc_num2, 14 * 13 * 64, bias=False),
-                    nn.BatchNorm1d(14 * 13 * 32),
+                    nn.BatchNorm1d(14 * 13 * 64),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
             else:
                 self.fc2_1.append(nn.Sequential(
                     nn.Linear(self.fc_num2, 13 * 18 * 64, bias=False),
-                    nn.BatchNorm1d(13 * 18 * 32),
+                    nn.BatchNorm1d(13 * 18 * 64),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
@@ -105,7 +105,7 @@ class AutoNet(pl.LightningModule):
         self.conv1_1_detect = self._make_layer(BasicBlock, 16, 2)
         self.convfinal_1 = nn.Conv2d(16, len(self.anchors1) * (self.detection_classes + 5), 1)
         self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800)
-
+        self.conv1_1 = self._make_layer(BasicBlock, 16, 2)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -151,7 +151,7 @@ class AutoNet(pl.LightningModule):
         return output
 
     def forward(self, x, detection_target=None):
-        x = x.view(-1, 3, 128, 160)
+        x = x.view(-1, 3, 256, 320)
         output_list = self.efficientNet(x)
         x = output_list[2]
 
@@ -172,7 +172,7 @@ class AutoNet(pl.LightningModule):
         x2 = self.compressed_1(x)
         x2 = x2.view(x2.size(0), -1)
         x2 = self.fc1_1(x2)
-        x2 = self.limitedFC1(x2, self.fc2_1, 32)
+        x2 = self.limitedFC1(x2, self.fc2_1, 64)
         x2 = self.conv0_1(x2)
         detect_output0 = self.conv0_1_detect(x2)
         detect_output0 = self.convfinal_0(detect_output0)

@@ -46,7 +46,7 @@ def collate_fn(batch):
 def collate_fn_lstm(batch):
     concated_input = []
     for i in range(len(batch)):
-        concated_input.append(batch[i][0].view(step_size, 18, 128, 160))
+        concated_input.append(batch[i][0].view(step_size, 18, 256, 320))
     concated_input = torch.stack(concated_input)
     batch_bbox_list = []
     batch_category_list = []
