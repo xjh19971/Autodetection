@@ -1,6 +1,7 @@
 import os
 from argparse import ArgumentParser
-
+# for Prince
+os.chdir('../')
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -12,8 +13,8 @@ from utils.helper import collate_fn_lstm
 
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
-# for Prince
-os.chdir('../')
+
+
 image_folder = 'dataset/data'
 annotation_csv = 'dataset/data/annotation.csv'
 # You shouldn't change the unlabeled_scene_index
