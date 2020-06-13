@@ -1,7 +1,7 @@
-import os
 from argparse import ArgumentParser
 # for Prince
-os.chdir('../')
+import sys
+sys.path.insert(0, '/home/jx1190/Autodetection')
 import numpy as np
 import pytorch_lightning as pl
 import torch
