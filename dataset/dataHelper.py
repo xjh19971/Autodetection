@@ -212,3 +212,99 @@ class LabeledDatasetScene(torch.utils.data.Dataset):
         road_images = torch.stack(road_image_list)
 
         return samples, target_list, road_images
+
+class UnLabeledPlusLabeledDatasetScene(torch.utils.data.Dataset):
+    def __init__(self, image_folder, annotation_file, unlabeled_scene_index, labeled_scene_index, transform, roadmap_transform, extra_info=True,
+                 scene_batch_size=4):
+        """
+        Args:
+            image_folder (string): the location of the image folder
+            annotation_file (string): the location of the annotations
+            scene_index (list): a list of scene indices for the unlabeled data
+            transform (Transform): The function to process the image
+            extra_info (Boolean): whether you want the extra information
+        """
+
+        self.image_folder = image_folder
+        self.annotation_dataframe = pd.read_csv(annotation_file)
+        self.unlabeled_scene_index = unlabeled_scene_index
+        self.labeled_scene_index = labeled_scene_index
+        self.transform = transform
+        self.extra_info = extra_info
+        self.roadmap_transform = roadmap_transform
+        self.scene_batch_size = scene_batch_size
+        self.unlabeled_scene_len=self.unlabeled_scene_index.size * (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1)
+    def __len__(self):
+        return self.labeled_scene_index.size * (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1)
+
+    def __getitem__(self, index):
+        unlabeled_index=np.random.randint(0,self.unlabeled_scene_len-1)
+        labeled_scene_id = self.labeled_scene_index[index // (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1)]
+        unlabeled_scene_id = self.unlabeled_scene_index[unlabeled_index // (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1)]
+        # sample_id = index % (NUM_SAMPLE_PER_SCENE // self.scene_batch_size)
+        labeled_sample_id_list = np.arange(index % (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1),
+                                   (index % (
+                                           NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1) + self.scene_batch_size))
+        unlabeled_sample_id_list = np.arange(unlabeled_index % (NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1),
+                                   (unlabeled_index % (
+                                           NUM_SAMPLE_PER_SCENE - self.scene_batch_size + 1) + self.scene_batch_size))
+        labeled_sample_path_list = []
+        unlabeled_sample_path_list = []
+        for sample_id in labeled_sample_id_list:
+            sample_path = os.path.join(self.image_folder, f'scene_{labeled_scene_id}', f'sample_{sample_id}')
+            labeled_sample_path_list.append(sample_path)
+        for sample_id in unlabeled_sample_id_list:
+            sample_path = os.path.join(self.image_folder, f'scene_{unlabeled_scene_id}', f'sample_{sample_id}')
+            unlabeled_sample_path_list.append(sample_path)
+        samples = []
+        for sample_path in labeled_sample_path_list:
+            images = []
+            for image_name in image_names:
+                image_path = os.path.join(sample_path, image_name)
+                image = Image.open(image_path)
+                images.append(self.transform(image))
+            image_tensor = torch.stack(images)
+            samples.append(image_tensor)
+
+        for sample_path in unlabeled_sample_path_list:
+            images = []
+            for image_name in image_names:
+                image_path = os.path.join(sample_path, image_name)
+                image = Image.open(image_path)
+                images.append(self.transform(image))
+            image_tensor = torch.stack(images)
+            samples.append(image_tensor)
+        samples = torch.stack(samples)
+        corners_list = []
+        categories_list = []
+        for sample_id in labeled_sample_id_list:
+            data_entries = self.annotation_dataframe[
+                (self.annotation_dataframe['scene'] == labeled_scene_id) & (self.annotation_dataframe['sample'] == sample_id)]
+            corners_list.append(
+                data_entries[['fl_x', 'fr_x', 'bl_x', 'br_x', 'fl_y', 'fr_y', 'bl_y', 'br_y']].to_numpy())
+            categories_list.append(data_entries.category_id.to_numpy())
+        road_image_list = []
+        target_list = []
+        loss_mask=[]
+        for i in range(len(labeled_sample_path_list)):
+            sample_path = labeled_sample_path_list[i]
+            ego_path = os.path.join(sample_path, 'ego.png')
+            ego_image = Image.open(ego_path)
+            ego_image = self.roadmap_transform(ego_image)
+            road_image = convert_map_to_road_map(ego_image)
+            road_image_list.append(road_image)
+            target = {}
+            target['bounding_box'] = torch.as_tensor(corners_list[i]).view(-1, 2, 4)
+            target['category'] = torch.as_tensor(categories_list[i])
+            target_list.append(target)
+            loss_mask.append(torch.tensor(1))
+        for i in range(len(unlabeled_sample_path_list)):
+            road_image_list.append(torch.zeros(400, 400).bool())
+            target = {}
+            target['bounding_box'] = torch.zeros(1, 1, 2, 4)
+            target['category'] = torch.zeros(1, 1)
+            target_list.append(target)
+            loss_mask.append(torch.tensor(0))
+        road_image_list = torch.stack(road_image_list)
+        loss_mask=torch.stack(loss_mask)
+        return samples, target_list, road_image_list, loss_mask
