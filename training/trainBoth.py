@@ -1,3 +1,4 @@
+import os
 from argparse import ArgumentParser
 
 import numpy as np
@@ -8,9 +9,11 @@ from torchvision import transforms
 import model.bothModelLimited as bothModel
 from dataset.dataHelper import LabeledDatasetScene
 from utils.helper import collate_fn_lstm
+
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
-
+# for Prince
+os.chdir('../')
 image_folder = 'dataset/data'
 annotation_csv = 'dataset/data/annotation.csv'
 # You shouldn't change the unlabeled_scene_index
@@ -24,14 +27,14 @@ pretrain_file = None
 if __name__ == '__main__':
     parser1 = ArgumentParser()
     trainparser = pl.Trainer.add_argparse_args(parser1)
-    trainparser.add_argument('--batch_size',type=int, default=4)
+    trainparser.add_argument('--batch_size', type=int, default=4)
     trainparser.set_defaults(gpus=1)
     trainparser.set_defaults(max_epochs=3000)
     trainparser = bothModel.AutoNet.add_model_specific_args(trainparser)
     args1 = trainparser.parse_args()
     data_transforms = transforms.Compose([
         transforms.Pad((7, 0)),
-        #transforms.Resize((128, 160)),
+        # transforms.Resize((128, 160)),
         transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
