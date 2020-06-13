@@ -24,13 +24,12 @@ class AutoNet(pl.LightningModule):
         self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b2', freeze=hparams.freeze)
-        '''
         self.compressed = nn.Sequential(
-            nn.Conv2d(320, 64, 1, bias=False),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(352, 128, 1, bias=False),
+            nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
-        )'''
+        )
         self.fc1 = nn.Sequential(
             nn.Linear(352 * 8 * 10, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
@@ -53,13 +52,12 @@ class AutoNet(pl.LightningModule):
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
-        '''
         self.compressed_1 = nn.Sequential(
-            nn.Conv2d(320, 16, 1, bias=False),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(352, 128, 1, bias=False),
+            nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
-        )'''
+        )
         self.fc1_1 = nn.Sequential(
             nn.Linear(352 * 8 * 10, self.fc_num2, bias=False),
             nn.BatchNorm1d(self.fc_num2),
