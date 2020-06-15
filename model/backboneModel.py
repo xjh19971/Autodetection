@@ -247,10 +247,10 @@ class EfficientNet(pl.LightningModule):
             # if idx == 4 or idx == 10 or idx == 15: b0
             # if idx == 7 or idx == 17 or idx == 25: b3
             # if idx == 9 or idx == 21 or idx == 31: b4
-            if idx == 7 or idx == 17 or idx == 25:
+            if idx == 7 or idx == 15 or idx == 22:
                 real_output.append(x)
         #x = self._swish(self._bn1(self._conv_head(x)))
-        real_output.append(x)
+        # \real_output.append(x)
         return real_output
 
     def forward(self, inputs, pretrain=False):

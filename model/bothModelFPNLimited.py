@@ -1,95 +1,150 @@
+from argparse import ArgumentParser
+
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+import torch.optim as optim
 
 from model.backboneModel import EfficientNet, YOLOLayer, BasicBlock
-import pytorch_lightning as pl
+from utils.helper import compute_ts_road_map
+from utils.yolo_utils import get_anchors
+
 
 class AutoNet(pl.LightningModule):
-    def __init__(self, anchors, detection_classes, freeze=True, device=None):
-        self.latent = 1000
-        self.fc_num1 = 100
-        self.fc_num2 = 100
-        self.anchors = anchors
-        self.anchors1 = np.reshape(anchors[0], [1, 2])
-        self.anchors0 = anchors[1:5, :]
-        self.device = device
-        self.detection_classes = detection_classes
+    def __init__(self, hparams):
+        super().__init__()
+        self.fc_num1 = 150
+        self.fc_num2 = 200
+        self.hparams = hparams
+        self.learning_rate = hparams.learning_rate
+        self.anchors = get_anchors(hparams.anchors_file)
+        self.anchors1 = np.reshape(self.anchors[0], [1, 2])
+        self.anchors0 = self.anchors[1:]
+        self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=freeze)
-        feature = self.efficientNet._fc.in_features
-        self.efficientNet._fc = nn.Sequential(
-            nn.Linear(in_features=feature, out_features=2 * self.latent)            #different from FPNModel in roadMap
+        self.efficientNet = EfficientNet.from_name('efficientnet-b2', freeze=hparams.freeze)
+        self.compressed = nn.Sequential(
+            nn.Conv2d(352, 16, 1, bias=False),
+            nn.BatchNorm2d(16),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.2),
         )
-        self.fc1 = nn.Sequential(
-            nn.Linear(self.latent, self.fc_num1, bias=False),
-            nn.BatchNorm1d(self.fc_num1),
+        self.compressed_1 = nn.Sequential(
+            nn.Conv2d(120, 8, 1, bias=False),
+            nn.BatchNorm2d(8),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.2),
+        )
+        self.compressed_2 = nn.Sequential(
+            nn.Conv2d(48, 4, 1, bias=False),
+            nn.BatchNorm2d(4),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.2),
+        )
+        self.fc1_1_1 = nn.Sequential(
+            nn.Linear(16 * 8 * 10, self.fc_num1 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num1 * 2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
-        self.fc2 = nn.ModuleList([])
+        self.fc1_1_2 = nn.Sequential(
+            nn.Linear(8 * 16 * 20, self.fc_num1 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num1 * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
+        self.fc1_1_3 = nn.Sequential(
+            nn.Linear(4 * 32 * 40, self.fc_num1 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num1 * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
+        self.fc1_2_1 = nn.Sequential(
+            nn.Linear(16 * 8 * 10, self.fc_num2 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
+        self.fc1_2_2 = nn.Sequential(
+            nn.Linear(8 * 16 * 20, self.fc_num2 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
+        self.fc1_2_3 = nn.Sequential(
+            nn.Linear(4 * 32 * 40, self.fc_num2 * 2, bias=False),
+            nn.BatchNorm1d(self.fc_num2 * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+        )
+        self.fc2_0_1 = nn.ModuleList([])
         for i in range(6):
             if i != 1 and i != 4:
-                self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1, 14 * 13 * 32, bias=False),
+                self.fc2_0_1.append(nn.Sequential(
+                    nn.Linear(self.fc_num1 * 3, 14 * 13 * 32, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.2),
                 ))
             else:
-                self.fc2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1, 13 * 18 * 32, bias=False),
+                self.fc2_0_1.append(nn.Sequential(
+                    nn.Linear(self.fc_num1 * 3, 13 * 18 * 32, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.2),
                 ))
-        self.fc1_1 = nn.Sequential(
-            nn.Linear(384 * 4 * 5, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-        )
-        self.fc1_2 = nn.Sequential(
-            nn.Linear(136 * 8 * 10, self.fc_num2 * 3, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 3),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-        )
-        self.fc2_1 = nn.ModuleList([])
+        self.fc2_0_2 = nn.ModuleList([])
         for i in range(6):
             if i != 1 and i != 4:
-                self.fc2_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 2, 14 * 13 * 64, bias=False),
-                    nn.BatchNorm1d(14 * 13 * 64),
-                    nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
-                ))
-            else:
-                self.fc2_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 2, 13 * 18 * 64, bias=False),
-                    nn.BatchNorm1d(13 * 18 * 64),
-                    nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
-                ))
-        self.fc2_2 = nn.ModuleList([])
-        for i in range(6):
-            if i != 1 and i != 4:
-                self.fc2_2.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 2, 28 * 26 * 8, bias=False),
+                self.fc2_0_2.append(nn.Sequential(
+                    nn.Linear(self.fc_num1 * 3, 28 * 26 * 8, bias=False),
                     nn.BatchNorm1d(28 * 26 * 8),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.2),
                 ))
             else:
-                self.fc2_2.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 2, 26 * 36 * 8, bias=False),
+                self.fc2_0_2.append(nn.Sequential(
+                    nn.Linear(self.fc_num1 * 3, 26 * 36 * 8, bias=False),
                     nn.BatchNorm1d(26 * 36 * 8),
                     nn.ReLU(inplace=True),
-                    nn.Dropout(0.25),
+                    nn.Dropout(0.2),
+                ))
+        self.fc2_1_1 = nn.ModuleList([])
+        for i in range(6):
+            if i != 1 and i != 4:
+                self.fc2_1_1.append(nn.Sequential(
+                    nn.Linear(self.fc_num2 * 3, 14 * 13 * 64, bias=False),
+                    nn.BatchNorm1d(14 * 13 * 64),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.2),
+                ))
+            else:
+                self.fc2_1_1.append(nn.Sequential(
+                    nn.Linear(self.fc_num2 * 3, 13 * 18 * 64, bias=False),
+                    nn.BatchNorm1d(13 * 18 * 64),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.2),
+                ))
+        self.fc2_1_2 = nn.ModuleList([])
+        for i in range(6):
+            if i != 1 and i != 4:
+                self.fc2_1_2.append(nn.Sequential(
+                    nn.Linear(self.fc_num2 * 3, 28 * 26 * 8, bias=False),
+                    nn.BatchNorm1d(28 * 26 * 8),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.2),
+                ))
+            else:
+                self.fc2_1_2.append(nn.Sequential(
+                    nn.Linear(self.fc_num2 * 3, 26 * 36 * 8, bias=False),
+                    nn.BatchNorm1d(26 * 36 * 8),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(0.2),
                 ))
         self.inplanes = 32
         self.conv0 = self._make_layer(BasicBlock, 32, 2)
-        self.deconv0 = self._make_deconv_layer(32, 16)
+        self.deconv0 = self._make_deconv_layer(32, 8)
         self.inplanes = 16
         self.conv1 = self._make_layer(BasicBlock, 16, 2)
         self.deconv1 = self._make_deconv_layer(16, 8)
@@ -104,16 +159,15 @@ class AutoNet(pl.LightningModule):
         self.inplanes = 64
         self.conv0_1_detect = self._make_layer(BasicBlock, 64, 2)
         self.convfinal_0 = nn.Conv2d(64, len(self.anchors0) * (self.detection_classes + 5), 1)
-        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800, device=device)
+        self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800)
         self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
         self.deconv0_1 = self._make_deconv_layer(64, 8)
 
         self.inplanes = 16
         self.conv1_1_detect = self._make_layer(BasicBlock, 16, 2)
         self.convfinal_1 = nn.Conv2d(16, len(self.anchors1) * (self.detection_classes + 5), 1)
-        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800, device=device)
+        self.yolo1 = YOLOLayer(self.anchors1, self.detection_classes, 800)
         self.conv1_1 = self._make_layer(BasicBlock, 16, 2)
-
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -139,11 +193,9 @@ class AutoNet(pl.LightningModule):
         layers.append(nn.ReLU(inplace=True))
         return nn.Sequential(*layers)
 
-    def reparameterise(self, mu, logvar):
-        return mu
-
     def limitedFC1(self, x, fc, filter):
-        output = torch.zeros((x.size(0) // 6, filter, 25, 25)).cuda()
+        FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
+        output = FloatTensor(x.size(0) // 6, filter, 25, 25).fill_(0)
         x = x.view(x.size(0) // 6, 6, -1)
         for i, block in enumerate(fc):
             if i == 0:
@@ -161,7 +213,8 @@ class AutoNet(pl.LightningModule):
         return output
 
     def limitedFC2(self, x, fc, filter):
-        output = torch.zeros((x.size(0) // 6, filter, 50, 50)).cuda()
+        FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
+        output = FloatTensor(x.size(0) // 6, filter, 50, 50).fill_(0)
         x = x.view(x.size(0) // 6, 6, -1)
         for i, block in enumerate(fc):
             if i == 0:
@@ -181,45 +234,125 @@ class AutoNet(pl.LightningModule):
     def forward(self, x, detection_target=None):
         x = x.view(-1, 3, 256, 320)
         output_list = self.efficientNet(x)
-        x1 = output_list[3].view(output_list[3].size(0), 2, -1)
-        mu = x1[:, 0, :]
-        logvar = x1[:, 1, :]
-        x1 = self.reparameterise(mu, logvar)
+        feature1 = self.compressed(output_list[2]).view(output_list[2].size(0), -1)
+        feature2 = self.compressed_1(output_list[1]).view(output_list[1].size(0), -1)
+        feature3 = self.compressed_2(output_list[0]).view(output_list[0].size(0), -1)
+        featurefc1_1 = self.fc1_1_1(feature1)
+        featurefc1_2 = self.fc1_2_1(feature1)
+        featurefc2_1 = self.fc1_1_2(feature2)
+        featurefc2_2 = self.fc1_2_2(feature2)
+        featurefc3_1 = self.fc1_1_3(feature3)
+        featurefc3_2 = self.fc1_2_3(feature3)
 
-        x1 = self.fc1(x1)
-        x1 = self.limitedFC1(x1, self.fc2, 32)
+        # x1 = self.compressed(x)
+        # x1 = x1.view(x1.size(0), -1)
+        x1 = torch.cat([featurefc1_1[:, :self.fc_num1], featurefc2_1[:, :self.fc_num1], featurefc3_1[:, :self.fc_num1]],
+                       dim=1)
+        x1 = self.limitedFC1(x1, self.fc2_0_1, 32)
         x1 = self.conv0(x1)
         x1 = self.deconv0(x1)
+
+        x1_1 = torch.cat(
+            [featurefc1_1[:, self.fc_num1:self.fc_num1 * 2], featurefc2_1[:, self.fc_num1:self.fc_num1 * 2],
+             featurefc3_1[:, self.fc_num1:self.fc_num1 * 2]], dim=1)
+        x1_1 = self.limitedFC2(x1_1, self.fc2_0_2, 8)
+        x1 = torch.cat([x1, x1_1], dim=1)
+
         x1 = self.conv1(x1)
         x1 = self.deconv1(x1)
+
         x1 = self.conv2(x1)
         x1 = self.deconv2(x1)
         x1 = self.conv3(x1)
         x1 = self.deconv3(x1)
         x1 = self.convfinal(x1)
 
-        feature0 = self.fc1_1(output_list[2].view(output_list[2].size(0), -1))
-        feature1 = self.fc1_2(output_list[1].view(output_list[1].size(0), -1))
-        x2 = torch.cat([feature0[:, :self.fc_num2], feature1[:, :self.fc_num2]], dim=1)
-        x2 = self.limitedFC1(x2, self.fc2_1, 64)
+        # x2 = self.compressed_1(x)
+        # x2 = x2.view(x2.size(0), -1)
+        x2 = torch.cat([featurefc1_2[:, :self.fc_num2], featurefc2_2[:, :self.fc_num2], featurefc3_2[:, :self.fc_num2]],
+                       dim=1)
+        x2 = self.limitedFC1(x2, self.fc2_1_1, 64)
         x2 = self.conv0_1(x2)
         detect_output0 = self.conv0_1_detect(x2)
         detect_output0 = self.convfinal_0(detect_output0)
         detect_output0, detect_loss0 = self.yolo0(detect_output0, detection_target, 800)
-        x2 = self.deconv0_1(x2)  # detection
+        x2 = self.deconv0_1(x2)
 
-        x2_1 = torch.cat([feature0[:, self.fc_num2:self.fc_num2 * 2], feature1[:, self.fc_num2:self.fc_num2 * 2]],
-                         dim=1)
-        x2_1 = self.limitedFC2(x2_1, self.fc2_2, 8)
+        x2_1 = torch.cat(
+            [featurefc1_2[:, self.fc_num2:self.fc_num2 * 2], featurefc2_2[:, self.fc_num2:self.fc_num2 * 2],
+             featurefc3_2[:, self.fc_num2:self.fc_num2 * 2]], dim=1)
+        x2_1 = self.limitedFC2(x2_1, self.fc2_1_2, 8)
         x2 = torch.cat([x2, x2_1], dim=1)
         x2 = self.conv1_1(x2)
         detect_output1 = self.conv1_1_detect(x2)
         detect_output1 = self.convfinal_1(detect_output1)
         detect_output1, detect_loss1 = self.yolo1(detect_output1, detection_target, 800)
-
-        total_loss = 0.6 * detect_loss0 + 0.4
+        total_loss = 0.6 * detect_loss0 + 0.4 * detect_loss1
         return nn.LogSoftmax(dim=1)(x1), detect_output0, detect_output1, total_loss
 
+    def loss_function(self, outputs, road_image):
+        road_loss = nn.NLLLoss()(outputs[0], road_image)
+        detection_loss = outputs[3]
+        loss = road_loss + detection_loss
+        return loss
 
-def trainModel(anchors, detection_classes=9, freeze=False, device=None):
-    return AutoNet(anchors, detection_classes, freeze=freeze, device=device)
+    def training_step(self, batch, batch_idx):
+        sample, bbox_list, category_list, road_image = batch
+        sample, road_image = sample, road_image
+        outputs = self(sample, [bbox_list, category_list])
+        loss = self.loss_function(outputs, road_image)
+        output0 = outputs[0].view(-1, 2, 400, 400)
+        road_image = road_image.view(-1, 400, 400)
+        _, predicted = torch.max(output0.data, 1)
+        AC = compute_ts_road_map(predicted, road_image)
+        P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
+        R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
+        lr = torch.tensor(self.trainer.optimizers[0].param_groups[0]['lr'])
+        log_bar = {'roadmap_score': AC, 'precision': P, 'recall': R, 'lr': lr}
+        log = {'loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R, 'lr': lr}
+        return {'loss': loss, 'log': log, 'progress_bar': log_bar}
+
+    def validation_step(self, batch, batch_idx):
+        sample, bbox_list, category_list, road_image = batch
+        sample, road_image = sample, road_image
+        outputs = self(sample, [bbox_list, category_list])
+        loss = self.loss_function(outputs, road_image)
+        # Pass data through model
+        outputs = self(sample, [bbox_list, category_list])
+        output0 = outputs[0].view(-1, 2, 400, 400)
+        road_image = road_image.view(-1, 400, 400)
+        _, predicted = torch.max(output0.data, 1)
+        AC = compute_ts_road_map(predicted, road_image)
+        P = torch.tensor((self.yolo0.metrics['precision'] + self.yolo1.metrics['precision']) / 2)
+        R = torch.tensor((self.yolo0.metrics['recall50'] + self.yolo1.metrics['recall50']) / 2)
+        return {'val_loss': loss, 'roadmap_score': AC, 'precision': P, 'recall': R}
+
+    def validation_epoch_end(self, outputs):
+        avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_AC = torch.stack([x['roadmap_score'] for x in outputs]).mean()
+        avg_P = torch.stack([x['precision'] for x in outputs]).mean()
+        avg_R = torch.stack([x['recall'] for x in outputs]).mean()
+        log = {'avg_val_loss': avg_val_loss, 'avg_roadmap_score': avg_AC, 'avg_precision': avg_P, 'avg_recall': avg_R}
+        return {'log': log, 'val_loss': avg_val_loss}
+
+    def configure_optimizers(self):
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=5e-4)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.25, patience=20)
+        return [optimizer], [scheduler]
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument('--anchors_file', type=str, default='yolo_anchors.txt')
+        parser.add_argument('--detection_classes', type=int, default=9)
+        parser.add_argument('--freeze', type=bool, default=False)
+        parser.add_argument('--learning_rate', type=float, default=0.01)
+        return parser
+
+
+def trainModel(args):
+    return AutoNet(args)
+
+
+def testModel(args):
+    return AutoNet(args)
