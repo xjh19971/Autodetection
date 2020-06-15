@@ -28,7 +28,7 @@ pretrain_file = None
 if __name__ == '__main__':
     parser1 = ArgumentParser()
     trainparser = pl.Trainer.add_argparse_args(parser1)
-    trainparser.add_argument('--batch_size', type=int, default=4)
+    trainparser.add_argument('--batch_size', type=int, default=3)
     trainparser.set_defaults(gpus=1)
     trainparser.set_defaults(max_epochs=3000)
     trainparser = bothModel.AutoNet.add_model_specific_args(trainparser)
@@ -47,13 +47,12 @@ if __name__ == '__main__':
                                            scene_index=labeled_scene_index,
                                            transform=data_transforms,
                                            roadmap_transform=roadmap_transforms,
-                                           extra_info=False,
                                            scene_batch_size=1
                                            )
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args1.batch_size, shuffle=True, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args1.batch_size, shuffle=False, num_workers=8,
                                               collate_fn=collate_fn_lstm)
     testloader = torch.utils.data.DataLoader(testset, batch_size=args1.batch_size, shuffle=False, num_workers=8,
                                              collate_fn=collate_fn_lstm)

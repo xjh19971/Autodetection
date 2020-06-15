@@ -145,7 +145,7 @@ class LabeledDataset(torch.utils.data.Dataset):
 
 
 class LabeledDatasetScene(torch.utils.data.Dataset):
-    def __init__(self, image_folder, annotation_file, scene_index, transform, roadmap_transform, extra_info=True,
+    def __init__(self, image_folder, annotation_file, scene_index, transform, roadmap_transform,
                  scene_batch_size=4):
         """
         Args:
@@ -160,7 +160,6 @@ class LabeledDatasetScene(torch.utils.data.Dataset):
         self.annotation_dataframe = pd.read_csv(annotation_file)
         self.scene_index = scene_index
         self.transform = transform
-        self.extra_info = extra_info
         self.roadmap_transform = roadmap_transform
         self.scene_batch_size = scene_batch_size
 
