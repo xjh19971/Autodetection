@@ -72,14 +72,14 @@ class AutoNet(pl.LightningModule):
         for i in range(6):
             if i != 1 and i != 4:
                 self.fc2_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num2, 14 * 13 * 32, bias=False),
+                    nn.Linear(self.fc_num2, 14 * 13 * 64, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
             else:
                 self.fc2_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num2, 13 * 18 * 32, bias=False),
+                    nn.Linear(self.fc_num2, 13 * 18 * 64, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
