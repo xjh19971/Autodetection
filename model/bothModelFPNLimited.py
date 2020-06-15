@@ -179,7 +179,7 @@ class AutoNet(pl.LightningModule):
         return output
 
     def forward(self, x, detection_target=None):
-        x = x.view(-1, 3, 128, 160)
+        x = x.view(-1, 3, 256, 320)
         output_list = self.efficientNet(x)
         x1 = output_list[3].view(output_list[3].size(0), 2, -1)
         mu = x1[:, 0, :]
