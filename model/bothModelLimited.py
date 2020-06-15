@@ -15,7 +15,7 @@ class AutoNet(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
         self.fc_num1 = 400
-        self.fc_num2 = 400
+        self.fc_num2 = 600
         self.hparams = hparams
         self.learning_rate = hparams.learning_rate
         self.anchors = get_anchors(hparams.anchors_file)
@@ -23,7 +23,7 @@ class AutoNet(pl.LightningModule):
         self.anchors0 = self.anchors[1:]
         self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
-        self.efficientNet = EfficientNet.from_name('efficientnet-b2', freeze=hparams.freeze)
+        self.efficientNet = EfficientNet.from_name('efficientnet-b3', freeze=hparams.freeze)
         '''
         self.compressed = nn.Sequential(
             nn.Conv2d(352, 16, 1, bias=False),
@@ -98,12 +98,12 @@ class AutoNet(pl.LightningModule):
         self.deconv3 = self._make_deconv_layer(4, 2)
         self.convfinal = nn.Conv2d(2, 2, 1)
 
-        self.inplanes = 32
-        self.conv0_1_detect = self._make_layer(BasicBlock, 32, 2)
-        self.convfinal_0 = nn.Conv2d(32, len(self.anchors0) * (self.detection_classes + 5), 1)
+        self.inplanes = 64
+        self.conv0_1_detect = self._make_layer(BasicBlock, 64, 2)
+        self.convfinal_0 = nn.Conv2d(64, len(self.anchors0) * (self.detection_classes + 5), 1)
         self.yolo0 = YOLOLayer(self.anchors0, self.detection_classes, 800)
-        self.conv0_1 = self._make_layer(BasicBlock, 32, 2)
-        self.deconv0_1 = self._make_deconv_layer(32, 16)
+        self.conv0_1 = self._make_layer(BasicBlock, 64, 2)
+        self.deconv0_1 = self._make_deconv_layer(64, 16)
 
         self.inplanes = 16
         self.conv1_1_detect = self._make_layer(BasicBlock, 16, 2)
@@ -178,7 +178,7 @@ class AutoNet(pl.LightningModule):
         #x2 = x2.view(x2.size(0), -1)
         x2=x.view(x.size(0),-1)
         x2 = self.fc1_1(x2)
-        x2 = self.limitedFC1(x2, self.fc2_1, 32)
+        x2 = self.limitedFC1(x2, self.fc2_1, 64)
         x2 = self.conv0_1(x2)
         detect_output0 = self.conv0_1_detect(x2)
         detect_output0 = self.convfinal_0(detect_output0)
