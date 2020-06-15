@@ -15,7 +15,7 @@ class AutoNet(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
         self.fc_num1 = 400
-        self.fc_num2 = 600
+        self.fc_num2 = 400
         self.hparams = hparams
         self.learning_rate = hparams.learning_rate
         self.anchors = get_anchors(hparams.anchors_file)
