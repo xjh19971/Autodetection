@@ -33,7 +33,7 @@ class AutoNet(pl.LightningModule):
         )
         '''
         self.fc1 = nn.Sequential(
-            nn.Linear(16 * 8 * 10, self.fc_num1, bias=False),
+            nn.Linear(352 * 8 * 10, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
@@ -63,7 +63,7 @@ class AutoNet(pl.LightningModule):
         )
         '''
         self.fc1_1 = nn.Sequential(
-            nn.Linear(16 * 8 * 10, self.fc_num2, bias=False),
+            nn.Linear(352 * 8 * 10, self.fc_num2, bias=False),
             nn.BatchNorm1d(self.fc_num2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
