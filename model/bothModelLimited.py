@@ -24,16 +24,14 @@ class AutoNet(pl.LightningModule):
         self.detection_classes = hparams.detection_classes
         super(AutoNet, self).__init__()
         self.efficientNet = EfficientNet.from_name('efficientnet-b2', freeze=hparams.freeze)
-        '''
         self.compressed = nn.Sequential(
             nn.Conv2d(352, 16, 1, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
-        '''
         self.fc1 = nn.Sequential(
-            nn.Linear(352 * 8 * 10, self.fc_num1, bias=False),
+            nn.Linear(16 * 8 * 10, self.fc_num1, bias=False),
             nn.BatchNorm1d(self.fc_num1),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
@@ -54,16 +52,14 @@ class AutoNet(pl.LightningModule):
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
-        '''
         self.compressed_1 = nn.Sequential(
             nn.Conv2d(352, 16, 1, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
-        '''
         self.fc1_1 = nn.Sequential(
-            nn.Linear(352 * 8 * 10, self.fc_num2, bias=False),
+            nn.Linear(16 * 8 * 10, self.fc_num2, bias=False),
             nn.BatchNorm1d(self.fc_num2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
@@ -159,9 +155,9 @@ class AutoNet(pl.LightningModule):
         output_list = self.efficientNet(x)
         x = output_list[2]
 
-        #x1 = self.compressed(x)
-        #x1 = x1.view(x1.size(0), -1)
-        x1 = x.view(x.size(0), -1)
+        x1 = self.compressed(x)
+        x1 = x1.view(x1.size(0), -1)
+        #x1 = x.view(x.size(0), -1)
         x1 = self.fc1(x1)
         x1 = self.limitedFC1(x1, self.fc2, 32)
         x1 = self.conv0(x1)
@@ -174,9 +170,9 @@ class AutoNet(pl.LightningModule):
         x1 = self.deconv3(x1)
         x1 = self.convfinal(x1)
 
-        #x2 = self.compressed_1(x)
-        #x2 = x2.view(x2.size(0), -1)
-        x2=x.view(x.size(0),-1)
+        x2 = self.compressed_1(x)
+        x2 = x2.view(x2.size(0), -1)
+        #x2=x.view(x.size(0),-1)
         x2 = self.fc1_1(x2)
         x2 = self.limitedFC1(x2, self.fc2_1, 64)
         x2 = self.conv0_1(x2)
