@@ -26,7 +26,7 @@ class AutoNet(pl.LightningModule):
         self.efficientNet = EfficientNet.from_name('efficientnet-b2', freeze=hparams.freeze)
         self.compressed = nn.Sequential(
             nn.Conv2d(352, 32, 1, bias=False),
-            nn.BatchNorm2d(128),
+            nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
@@ -55,7 +55,7 @@ class AutoNet(pl.LightningModule):
 
         self.compressed_1 = nn.Sequential(
             nn.Conv2d(352, 48, 1, bias=False),
-            nn.BatchNorm2d(128),
+            nn.BatchNorm2d(48),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
