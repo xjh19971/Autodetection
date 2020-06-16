@@ -14,8 +14,8 @@ from utils.yolo_utils import get_anchors
 class AutoNet(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
-        self.fc_num1 = 150
-        self.fc_num2 = 200
+        self.fc_num1 = 200
+        self.fc_num2 = 300
         self.hparams = hparams
         self.learning_rate = hparams.learning_rate
         self.anchors = get_anchors(hparams.anchors_file)
