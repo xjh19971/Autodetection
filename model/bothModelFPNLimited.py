@@ -36,12 +36,6 @@ class AutoNet(pl.LightningModule):
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
         )
-        self.compressed_2 = nn.Sequential(
-            nn.Conv2d(48, 4, 1, bias=False),
-            nn.BatchNorm2d(4),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.2),
-        )
         self.fc1_1_1 = nn.Sequential(
             nn.Linear(16 * 8 * 10, self.fc_num1 * 2, bias=False),
             nn.BatchNorm1d(self.fc_num1 * 2),
@@ -50,12 +44,6 @@ class AutoNet(pl.LightningModule):
         )
         self.fc1_1_2 = nn.Sequential(
             nn.Linear(8 * 16 * 20, self.fc_num1 * 2, bias=False),
-            nn.BatchNorm1d(self.fc_num1 * 2),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-        )
-        self.fc1_1_3 = nn.Sequential(
-            nn.Linear(4 * 32 * 40, self.fc_num1 * 2, bias=False),
             nn.BatchNorm1d(self.fc_num1 * 2),
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
@@ -72,24 +60,18 @@ class AutoNet(pl.LightningModule):
             nn.ReLU(inplace=True),
             nn.Dropout(0.25),
         )
-        self.fc1_2_3 = nn.Sequential(
-            nn.Linear(4 * 32 * 40, self.fc_num2 * 2, bias=False),
-            nn.BatchNorm1d(self.fc_num2 * 2),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
-        )
         self.fc2_0_1 = nn.ModuleList([])
         for i in range(6):
             if i != 1 and i != 4:
                 self.fc2_0_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num1 * 3, 14 * 13 * 32, bias=False),
+                    nn.Linear(self.fc_num1 * 2, 14 * 13 * 32, bias=False),
                     nn.BatchNorm1d(14 * 13 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
             else:
                 self.fc2_0_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num1 * 3, 13 * 18 * 32, bias=False),
+                    nn.Linear(self.fc_num1 * 2, 13 * 18 * 32, bias=False),
                     nn.BatchNorm1d(13 * 18 * 32),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
@@ -98,14 +80,14 @@ class AutoNet(pl.LightningModule):
         for i in range(6):
             if i != 1 and i != 4:
                 self.fc2_0_2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1 * 3, 28 * 26 * 8, bias=False),
+                    nn.Linear(self.fc_num1 * 2, 28 * 26 * 8, bias=False),
                     nn.BatchNorm1d(28 * 26 * 8),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
             else:
                 self.fc2_0_2.append(nn.Sequential(
-                    nn.Linear(self.fc_num1 * 3, 26 * 36 * 8, bias=False),
+                    nn.Linear(self.fc_num1 * 2, 26 * 36 * 8, bias=False),
                     nn.BatchNorm1d(26 * 36 * 8),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
@@ -114,14 +96,14 @@ class AutoNet(pl.LightningModule):
         for i in range(6):
             if i != 1 and i != 4:
                 self.fc2_1_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 3, 14 * 13 * 64, bias=False),
+                    nn.Linear(self.fc_num2 * 2, 14 * 13 * 64, bias=False),
                     nn.BatchNorm1d(14 * 13 * 64),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
             else:
                 self.fc2_1_1.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 3, 13 * 18 * 64, bias=False),
+                    nn.Linear(self.fc_num2 * 2, 13 * 18 * 64, bias=False),
                     nn.BatchNorm1d(13 * 18 * 64),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
@@ -130,14 +112,14 @@ class AutoNet(pl.LightningModule):
         for i in range(6):
             if i != 1 and i != 4:
                 self.fc2_1_2.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 3, 28 * 26 * 8, bias=False),
+                    nn.Linear(self.fc_num2 * 2, 28 * 26 * 8, bias=False),
                     nn.BatchNorm1d(28 * 26 * 8),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
                 ))
             else:
                 self.fc2_1_2.append(nn.Sequential(
-                    nn.Linear(self.fc_num2 * 3, 26 * 36 * 8, bias=False),
+                    nn.Linear(self.fc_num2 * 2, 26 * 36 * 8, bias=False),
                     nn.BatchNorm1d(26 * 36 * 8),
                     nn.ReLU(inplace=True),
                     nn.Dropout(0.2),
@@ -236,25 +218,21 @@ class AutoNet(pl.LightningModule):
         output_list = self.efficientNet(x)
         feature1 = self.compressed(output_list[2]).view(output_list[2].size(0), -1)
         feature2 = self.compressed_1(output_list[1]).view(output_list[1].size(0), -1)
-        feature3 = self.compressed_2(output_list[0]).view(output_list[0].size(0), -1)
         featurefc1_1 = self.fc1_1_1(feature1)
         featurefc1_2 = self.fc1_2_1(feature1)
         featurefc2_1 = self.fc1_1_2(feature2)
         featurefc2_2 = self.fc1_2_2(feature2)
-        featurefc3_1 = self.fc1_1_3(feature3)
-        featurefc3_2 = self.fc1_2_3(feature3)
 
         # x1 = self.compressed(x)
         # x1 = x1.view(x1.size(0), -1)
-        x1 = torch.cat([featurefc1_1[:, :self.fc_num1], featurefc2_1[:, :self.fc_num1], featurefc3_1[:, :self.fc_num1]],
+        x1 = torch.cat([featurefc1_1[:, :self.fc_num1], featurefc2_1[:, :self.fc_num1]],
                        dim=1)
         x1 = self.limitedFC1(x1, self.fc2_0_1, 32)
         x1 = self.conv0(x1)
         x1 = self.deconv0(x1)
 
         x1_1 = torch.cat(
-            [featurefc1_1[:, self.fc_num1:self.fc_num1 * 2], featurefc2_1[:, self.fc_num1:self.fc_num1 * 2],
-             featurefc3_1[:, self.fc_num1:self.fc_num1 * 2]], dim=1)
+            [featurefc1_1[:, self.fc_num1:self.fc_num1 * 2], featurefc2_1[:, self.fc_num1:self.fc_num1 * 2]], dim=1)
         x1_1 = self.limitedFC2(x1_1, self.fc2_0_2, 8)
         x1 = torch.cat([x1, x1_1], dim=1)
 
@@ -269,7 +247,7 @@ class AutoNet(pl.LightningModule):
 
         # x2 = self.compressed_1(x)
         # x2 = x2.view(x2.size(0), -1)
-        x2 = torch.cat([featurefc1_2[:, :self.fc_num2], featurefc2_2[:, :self.fc_num2], featurefc3_2[:, :self.fc_num2]],
+        x2 = torch.cat([featurefc1_2[:, :self.fc_num2], featurefc2_2[:, :self.fc_num2]],
                        dim=1)
         x2 = self.limitedFC1(x2, self.fc2_1_1, 64)
         x2 = self.conv0_1(x2)
@@ -279,8 +257,7 @@ class AutoNet(pl.LightningModule):
         x2 = self.deconv0_1(x2)
 
         x2_1 = torch.cat(
-            [featurefc1_2[:, self.fc_num2:self.fc_num2 * 2], featurefc2_2[:, self.fc_num2:self.fc_num2 * 2],
-             featurefc3_2[:, self.fc_num2:self.fc_num2 * 2]], dim=1)
+            [featurefc1_2[:, self.fc_num2:self.fc_num2 * 2], featurefc2_2[:, self.fc_num2:self.fc_num2 * 2]], dim=1)
         x2_1 = self.limitedFC2(x2_1, self.fc2_1_2, 8)
         x2 = torch.cat([x2, x2_1], dim=1)
         x2 = self.conv1_1(x2)
