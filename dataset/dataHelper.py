@@ -255,7 +255,7 @@ class UnLabeledPlusLabeledDatasetScene(torch.utils.data.Dataset):
         for sample_id in unlabeled_sample_id_list:
             sample_path = os.path.join(self.image_folder, f'scene_{unlabeled_scene_id}', f'sample_{sample_id}')
             unlabeled_sample_path_list.append(sample_path)
-        samples = []
+        labeled_samples = []
         for sample_path in labeled_sample_path_list:
             images = []
             for image_name in image_names:
@@ -263,8 +263,9 @@ class UnLabeledPlusLabeledDatasetScene(torch.utils.data.Dataset):
                 image = Image.open(image_path)
                 images.append(self.transform(image))
             image_tensor = torch.stack(images)
-            samples.append(image_tensor)
-
+            labeled_samples.append(image_tensor)
+        labeled_samples=torch.stack(labeled_samples)
+        unlabeled_samples = []
         for sample_path in unlabeled_sample_path_list:
             images = []
             for image_name in image_names:
@@ -272,8 +273,9 @@ class UnLabeledPlusLabeledDatasetScene(torch.utils.data.Dataset):
                 image = Image.open(image_path)
                 images.append(self.transform(image))
             image_tensor = torch.stack(images)
-            samples.append(image_tensor)
-        samples = torch.stack(samples)
+            unlabeled_samples.append(image_tensor)
+        unlabeled_samples = torch.stack(unlabeled_samples)
+        samples=torch.stack([labeled_samples,unlabeled_samples])
         corners_list = []
         categories_list = []
         for sample_id in labeled_sample_id_list:
@@ -282,28 +284,36 @@ class UnLabeledPlusLabeledDatasetScene(torch.utils.data.Dataset):
             corners_list.append(
                 data_entries[['fl_x', 'fr_x', 'bl_x', 'br_x', 'fl_y', 'fr_y', 'bl_y', 'br_y']].to_numpy())
             categories_list.append(data_entries.category_id.to_numpy())
-        road_image_list = []
-        target_list = []
-        loss_mask=[]
+        labeled_road_image_list = []
+        labeled_target_list = []
+        labeled_loss_mask=[]
         for i in range(len(labeled_sample_path_list)):
             sample_path = labeled_sample_path_list[i]
             ego_path = os.path.join(sample_path, 'ego.png')
             ego_image = Image.open(ego_path)
             ego_image = self.roadmap_transform(ego_image)
             road_image = convert_map_to_road_map(ego_image)
-            road_image_list.append(road_image)
+            labeled_road_image_list.append(road_image)
             target = {}
             target['bounding_box'] = torch.as_tensor(corners_list[i]).view(-1, 2, 4)
             target['category'] = torch.as_tensor(categories_list[i])
-            target_list.append(target)
-            loss_mask.append(torch.tensor(1))
+            labeled_target_list.append(target)
+            labeled_loss_mask.append(torch.tensor(1))
+        labeled_road_image_list=torch.stack(labeled_road_image_list)
+        labeled_loss_mask=torch.stack(labeled_loss_mask)
+        unlabeled_road_image_list = []
+        unlabeled_target_list = []
+        unlabeled_loss_mask=[]
         for i in range(len(unlabeled_sample_path_list)):
-            road_image_list.append(torch.zeros(400, 400).bool())
+            unlabeled_road_image_list.append(torch.zeros(400, 400).bool())
             target = {}
-            target['bounding_box'] = torch.zeros(1, 1, 2, 4)
-            target['category'] = torch.zeros(1, 1)
-            target_list.append(target)
-            loss_mask.append(torch.tensor(0))
-        road_image_list = torch.stack(road_image_list)
-        loss_mask=torch.stack(loss_mask)
+            target['bounding_box'] = torch.zeros(1, 2, 4)
+            target['category'] = torch.zeros(1)
+            unlabeled_target_list.append(target)
+            unlabeled_loss_mask.append(torch.tensor(0))
+        unlabeled_road_image_list = torch.stack(unlabeled_road_image_list)
+        unlabeled_loss_mask = torch.stack(unlabeled_loss_mask)
+        road_image_list = torch.stack([labeled_road_image_list,unlabeled_road_image_list])
+        target_list=[labeled_target_list,unlabeled_target_list]
+        loss_mask = torch.stack([labeled_loss_mask,unlabeled_loss_mask])
         return samples, target_list, road_image_list, loss_mask

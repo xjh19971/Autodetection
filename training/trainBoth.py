@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 # for Prince
 import sys
-sys.path.insert(0, '/home/jx1190/Autodetection')
+sys.path.insert(0, '/mnt/e/Autodetection')
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -28,7 +28,7 @@ pretrain_file = None
 if __name__ == '__main__':
     parser1 = ArgumentParser()
     trainparser = pl.Trainer.add_argparse_args(parser1)
-    trainparser.add_argument('--batch_size', type=int, default=3)
+    trainparser.add_argument('--batch_size', type=int, default=4)
     trainparser.set_defaults(gpus=1)
     trainparser.set_defaults(max_epochs=3000)
     trainparser = bothModel.AutoNet.add_model_specific_args(trainparser)
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args1.batch_size, shuffle=False, num_workers=8,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args1.batch_size, shuffle=True, num_workers=8,
                                               collate_fn=collate_fn_lstm)
     testloader = torch.utils.data.DataLoader(testset, batch_size=args1.batch_size, shuffle=False, num_workers=8,
                                              collate_fn=collate_fn_lstm)
