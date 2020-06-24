@@ -30,7 +30,7 @@ Run all code in the root directory, e.g., to run trainBothFPN.py
 python training/trainBothFPN.py
 ```
 
-If you want to train LSTMmodel, make sure step_sizes in helper.py and bothModelLSTM.py are the same and scene_batch_size in trainBothLSTM.py and bothModelLSTM.py (batch_size in trainModel function) are the same.
+If you want to train LSTMmodel, make sure step_size in helper.py = batch_size in bothModelLSTM.py = scene_batch_size in trainBothLSTM.py. To adjust the length of sliding window of LSTM, change step_size in bothModelLSTM.py.
 
 To train from pretrained model, set pretrain_file in train***.py. Otherwise, set pretrain_file = None.
 

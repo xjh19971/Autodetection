@@ -282,7 +282,7 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, img_dim=8
         for j in range(target[0][i].shape[0]):
             realtarget.append([i, target[1][i][j], target[0][i][j][0] / img_dim, target[0][i][j][1] / img_dim,
                                target[0][i][j][2] / img_dim, target[0][i][j][3] / img_dim])
-    target = torch.tensor(realtarget).float().cuda()
+    target = FloatTensor(realtarget)
     # Convert to position relative to box
     target_boxes = target[:, 2:6] * nG
     gxy = target_boxes[:, :2]
@@ -317,3 +317,10 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, img_dim=8
 
     tconf = obj_mask.float()
     return iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf
+
+def get_anchors(anchors_path):
+    '''loads the anchors from a file'''
+    with open(anchors_path) as f:
+        anchors = f.readline()
+    anchors = [float(x) for x in anchors.split(',')]
+    return np.array(anchors).reshape(-1, 2)

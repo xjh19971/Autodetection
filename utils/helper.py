@@ -46,7 +46,7 @@ def collate_fn(batch):
 def collate_fn_lstm(batch):
     concated_input = []
     for i in range(len(batch)):
-        concated_input.append(batch[i][0].view(step_size, 18, 128, 160))
+        concated_input.append(batch[i][0].view(step_size, 18, 256, 320))
     concated_input = torch.stack(concated_input)
     batch_bbox_list = []
     batch_category_list = []
@@ -67,6 +67,35 @@ def collate_fn_lstm(batch):
         concated_roadmap.append(batch[i][2])
     concated_roadmap = torch.cat(concated_roadmap, dim=0).long()
     return [concated_input, batch_bbox_list, batch_category_list, concated_roadmap]
+
+
+def collate_fn_lstm_self(batch):
+    concated_input = []
+    concated_loss_mask = []
+    for i in range(len(batch)):
+        concated_input.append(batch[i][0].view(step_size, 18, 128, 160))
+        concated_loss_mask.append(batch[i][4])
+    concated_input = torch.stack(concated_input)
+    concated_loss_mask = torch.stack(concated_loss_mask)
+    batch_bbox_list = []
+    batch_category_list = []
+    for i in range(len(batch)):
+        for j in range(len(batch[i][1])):
+            min_x = torch.min(batch[i][1][j]['bounding_box'][:, 0, :], dim=1)[0]
+            min_y = torch.min(batch[i][1][j]['bounding_box'][:, 1, :], dim=1)[0]
+            max_x = torch.max(batch[i][1][j]['bounding_box'][:, 0, :], dim=1)[0]
+            max_y = torch.max(batch[i][1][j]['bounding_box'][:, 1, :], dim=1)[0]
+            width = torch.sub(max_x, min_x)
+            height = torch.sub(max_y, min_y)
+            batch_bbox_list.append(torch.floor(torch.stack(
+                [min_x * 10 + 400 + width * 10 / 2, min_y * 10 + 400 + height * 10 / 2, width * 10, height * 10],
+                dim=1)))
+            batch_category_list.append(batch[i][1][j]['category'])
+    concated_roadmap = []
+    for i in range(len(batch)):
+        concated_roadmap.append(batch[i][2])
+    concated_roadmap = torch.cat(concated_roadmap, dim=0).long()
+    return [concated_input, batch_bbox_list, batch_category_list, concated_roadmap, concated_loss_mask]
 
 
 def collate_fn_display(batch):

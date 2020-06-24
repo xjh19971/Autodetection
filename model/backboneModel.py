@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+import pytorch_lightning as pl
 '''This implemention is based on Lukemelas's implemention https://github.com/lukemelas/EfficientNet-PyTorch.git and 
 Eriklindernoren's implementation https://github.com/eriklindernoren/PyTorch-YOLOv3.git with some revisement 
 Thank you very much'''
@@ -23,7 +24,7 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
-class BasicBlock(nn.Module):
+class BasicBlock(pl.LightningModule):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
@@ -55,7 +56,7 @@ class BasicBlock(nn.Module):
         return out
 
 
-class MBConvBlock(nn.Module):
+class MBConvBlock(pl.LightningModule):
     """
     Mobile Inverted Residual Bottleneck Block
     Args:
@@ -137,7 +138,7 @@ class MBConvBlock(nn.Module):
         self._swish = MemoryEfficientSwish() if memory_efficient else Swish()
 
 
-class EfficientNet(nn.Module):
+class EfficientNet(pl.LightningModule):
     """
     An EfficientNet model. Most easily loaded with the .from_name or .from_pretrained methods
     Args:
@@ -193,15 +194,15 @@ class EfficientNet(nn.Module):
                         para.requires_grad = False
 
         # Head
-        in_channels = block_args.output_filters  # output of final block
-        out_channels = round_filters(1280, self._global_params)
-        self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+        #in_channels = block_args.output_filters  # output of final block
+        #out_channels = round_filters(1280, self._global_params)
+        #self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        #self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
 
         # Final linear layer
-        self._avg_pooling = nn.AdaptiveAvgPool2d(1)
-        self._dropout = nn.Dropout(self._global_params.dropout_rate)
-        self._fc = nn.Linear(out_channels, self._global_params.num_classes)
+        #self._avg_pooling = nn.AdaptiveAvgPool2d(1)
+        #self._dropout = nn.Dropout(self._global_params.dropout_rate)
+        #self._fc = nn.Linear(out_channels, self._global_params.num_classes)
         self._swish = MemoryEfficientSwish()
 
     def set_swish(self, memory_efficient=True):
@@ -241,9 +242,14 @@ class EfficientNet(nn.Module):
             if drop_connect_rate:
                 drop_connect_rate *= float(idx) / len(self._blocks)
             x = block(x, drop_connect_rate=drop_connect_rate)
-            if idx == 7 or idx == 17 or idx == 25:
+            # if idx == 7 or idx == 15 or idx == 22: b2
+            # if idx == 7 or idx == 15 or idx == 22: b1
+            # if idx == 4 or idx == 10 or idx == 15: b0
+            # if idx == 7 or idx == 17 or idx == 25: b3
+            # if idx == 9 or idx == 21 or idx == 31: b4
+            if idx == 7 or idx == 15 or idx == 22:
                 real_output.append(x)
-        x = self._swish(self._bn1(self._conv_head(x)))
+        #x = self._swish(self._bn1(self._conv_head(x)))
         real_output.append(x)
         return real_output
 
@@ -261,13 +267,13 @@ class EfficientNet(nn.Module):
             x = self._fc(x)
         else:
             output = self.extract_features_FPN(inputs)
-            x = output[3]
+            # x = output[3]
             # Pooling and final linear layer
-            x = self._avg_pooling(x)
-            x = x.view(bs, -1)
-            x = self._dropout(x)
-            x = self._fc(x)
-            output[3] = x
+            # x = self._avg_pooling(x)
+            # x = x.view(bs, -1)
+            # x = self._dropout(x)
+            # x = self._fc(x)
+            # output[3] = x
             x = output
         return x
 
@@ -291,10 +297,10 @@ class EfficientNet(nn.Module):
             raise ValueError('model_name should be one of: ' + ', '.join(valid_models))
 
 
-class YOLOLayer(nn.Module):
+class YOLOLayer(pl.LightningModule):
     """Detection layer"""
 
-    def __init__(self, anchors, num_classes, img_dim=800, device=None):
+    def __init__(self, anchors, num_classes, img_dim=800):
         super(YOLOLayer, self).__init__()
         self.anchors = anchors
         self.num_anchors = len(anchors)
@@ -307,8 +313,6 @@ class YOLOLayer(nn.Module):
         self.metrics = {}
         self.img_dim = img_dim
         self.grid_size = 0  # grid size
-        if device is not None:
-            torch.cuda.set_device(device)
 
     def compute_grid_offsets(self, grid_size, cuda=True):
         self.grid_size = grid_size
