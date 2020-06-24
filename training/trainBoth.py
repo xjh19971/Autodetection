@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 # for Prince
 import sys
-sys.path.insert(0, '/home/jx1190/Autodetection')
+sys.path.insert(0, '/mnt/e/Autodetection')
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -47,7 +47,6 @@ if __name__ == '__main__':
                                            scene_index=labeled_scene_index,
                                            transform=data_transforms,
                                            roadmap_transform=roadmap_transforms,
-                                           extra_info=False,
                                            scene_batch_size=1
                                            )
     trainset, testset = torch.utils.data.random_split(labeled_trainset, [int(0.90 * len(labeled_trainset)),

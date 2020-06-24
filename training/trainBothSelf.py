@@ -1,5 +1,7 @@
 from argparse import ArgumentParser
-
+# for Prince
+import sys
+sys.path.insert(0, '/mnt/e/Autodetection')
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -7,7 +9,7 @@ from torchvision import transforms
 
 import model.bothModelLimitedPlus as bothModel
 from dataset.dataHelper import UnLabeledPlusLabeledDatasetScene
-from utils.helper import collate_fn_lstm
+from utils.helper import collate_fn_lstm_self
 # All the images are saved in image_folder
 # All the labels are saved in the annotation_csv file
 
@@ -24,14 +26,14 @@ pretrain_file = None
 if __name__ == '__main__':
     parser1 = ArgumentParser()
     trainparser = pl.Trainer.add_argparse_args(parser1)
-    trainparser.add_argument('--batch_size',type=int, default=8)
+    trainparser.add_argument('--batch_size',type=int, default=2)
     trainparser.set_defaults(gpus=1)
     trainparser.set_defaults(max_epochs=3000)
     trainparser = bothModel.AutoNet.add_model_specific_args(trainparser)
     args1 = trainparser.parse_args()
     data_transforms = transforms.Compose([
         transforms.Pad((7, 0)),
-        transforms.Resize((128, 160)),
+        transforms.Resize((256, 320)),
         transforms.ToTensor(),
     ])
     roadmap_transforms = transforms.Compose([
@@ -51,9 +53,9 @@ if __name__ == '__main__':
                                                                          len(labeled_trainset) - int(
                                                                              0.90 * len(labeled_trainset))])
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args1.batch_size, shuffle=True, num_workers=1,
-                                              collate_fn=collate_fn_lstm)
+                                              collate_fn=collate_fn_lstm_self)
     testloader = torch.utils.data.DataLoader(testset, batch_size=args1.batch_size, shuffle=False, num_workers=1,
-                                             collate_fn=collate_fn_lstm)
+                                             collate_fn=collate_fn_lstm_self)
 
     model = bothModel.trainModel(args1)
     print("Model has {} paramerters in total".format(sum(x.numel() for x in model.parameters())))

@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 import pytorch_lightning as pl
+
 '''This implemention is based on Lukemelas's implemention https://github.com/lukemelas/EfficientNet-PyTorch.git and 
 Eriklindernoren's implementation https://github.com/eriklindernoren/PyTorch-YOLOv3.git with some revisement 
 Thank you very much'''
@@ -194,15 +195,15 @@ class EfficientNet(pl.LightningModule):
                         para.requires_grad = False
 
         # Head
-        #in_channels = block_args.output_filters  # output of final block
-        #out_channels = round_filters(1280, self._global_params)
-        #self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        #self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+        # in_channels = block_args.output_filters  # output of final block
+        # out_channels = round_filters(1280, self._global_params)
+        # self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        # self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
 
         # Final linear layer
-        #self._avg_pooling = nn.AdaptiveAvgPool2d(1)
-        #self._dropout = nn.Dropout(self._global_params.dropout_rate)
-        #self._fc = nn.Linear(out_channels, self._global_params.num_classes)
+        # self._avg_pooling = nn.AdaptiveAvgPool2d(1)
+        # self._dropout = nn.Dropout(self._global_params.dropout_rate)
+        # self._fc = nn.Linear(out_channels, self._global_params.num_classes)
         self._swish = MemoryEfficientSwish()
 
     def set_swish(self, memory_efficient=True):
@@ -249,8 +250,8 @@ class EfficientNet(pl.LightningModule):
             # if idx == 9 or idx == 21 or idx == 31: b4
             if idx == 7 or idx == 15 or idx == 22:
                 real_output.append(x)
-        #x = self._swish(self._bn1(self._conv_head(x)))
-        real_output.append(x)
+        # x = self._swish(self._bn1(self._conv_head(x)))
+        # \real_output.append(x)
         return real_output
 
     def forward(self, inputs, pretrain=False):
@@ -300,7 +301,7 @@ class EfficientNet(pl.LightningModule):
 class YOLOLayer(pl.LightningModule):
     """Detection layer"""
 
-    def __init__(self, anchors, num_classes, img_dim=800):
+    def __init__(self, anchors, num_classes, img_dim):
         super(YOLOLayer, self).__init__()
         self.anchors = anchors
         self.num_anchors = len(anchors)
@@ -326,12 +327,21 @@ class YOLOLayer(pl.LightningModule):
         self.anchor_w = self.scaled_anchors[:, 0:1].view((1, self.num_anchors, 1, 1))
         self.anchor_h = self.scaled_anchors[:, 1:2].view((1, self.num_anchors, 1, 1))
 
-    def forward(self, x, targets=None, img_dim=None):
+    def forward(self, x, targets=None, img_dim=None, loss_mask=None):
 
         # Tensors for cuda support
         FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
 
         self.img_dim = img_dim
+        if loss_mask is not None:
+            loss_mask=loss_mask.view(-1)
+            x=x[loss_mask==1,...]
+            real_targets=[[],[]]
+            for i in range(len(loss_mask)):
+                if loss_mask[i]==1:
+                    real_targets[0].append(targets[0][i])
+                    real_targets[1].append(targets[1][i])
+            targets=real_targets
         num_samples = x.size(0)
         grid_size = x.size(2)
 

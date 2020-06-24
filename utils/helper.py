@@ -73,28 +73,33 @@ def collate_fn_lstm_self(batch):
     concated_input = []
     concated_loss_mask = []
     for i in range(len(batch)):
-        concated_input.append(batch[i][0].view(step_size, 18, 128, 160))
-        concated_loss_mask.append(batch[i][4])
+        concated_input.append(batch[i][0].view(2, step_size, 18, 256, 320))
+        concated_loss_mask.append(batch[i][3])
     concated_input = torch.stack(concated_input)
     concated_loss_mask = torch.stack(concated_loss_mask)
-    batch_bbox_list = []
-    batch_category_list = []
+    batch_bbox_list = [[] for i in range(len(batch))]
+    batch_category_list = [[] for i in range(len(batch))]
     for i in range(len(batch)):
-        for j in range(len(batch[i][1])):
-            min_x = torch.min(batch[i][1][j]['bounding_box'][:, 0, :], dim=1)[0]
-            min_y = torch.min(batch[i][1][j]['bounding_box'][:, 1, :], dim=1)[0]
-            max_x = torch.max(batch[i][1][j]['bounding_box'][:, 0, :], dim=1)[0]
-            max_y = torch.max(batch[i][1][j]['bounding_box'][:, 1, :], dim=1)[0]
-            width = torch.sub(max_x, min_x)
-            height = torch.sub(max_y, min_y)
-            batch_bbox_list.append(torch.floor(torch.stack(
-                [min_x * 10 + 400 + width * 10 / 2, min_y * 10 + 400 + height * 10 / 2, width * 10, height * 10],
-                dim=1)))
-            batch_category_list.append(batch[i][1][j]['category'])
-    concated_roadmap = []
+        for k in range(2):
+            for j in range(len(batch[i][1][k])):
+                min_x = torch.min(batch[i][1][k][j]['bounding_box'][:, 0, :], dim=1)[0]
+                min_y = torch.min(batch[i][1][k][j]['bounding_box'][:, 1, :], dim=1)[0]
+                max_x = torch.max(batch[i][1][k][j]['bounding_box'][:, 0, :], dim=1)[0]
+                max_y = torch.max(batch[i][1][k][j]['bounding_box'][:, 1, :], dim=1)[0]
+                width = torch.sub(max_x, min_x)
+                height = torch.sub(max_y, min_y)
+                batch_bbox_list[i].append(torch.floor(torch.stack(
+                    [min_x * 10 + 400 + width * 10 / 2, min_y * 10 + 400 + height * 10 / 2, width * 10, height * 10],
+                    dim=1)))
+                batch_category_list[i].append(batch[i][1][k][j]['category'])
+    concated_roadmap = [[[[0] for j in range(len(batch[i][1][k]))] for k in range(2)] for i in range(len(batch))]
     for i in range(len(batch)):
-        concated_roadmap.append(batch[i][2])
-    concated_roadmap = torch.cat(concated_roadmap, dim=0).long()
+        for k in range(2):
+            for j in range(len(batch[i][2][k])):
+                concated_roadmap[i][k][j]=batch[i][2][k][j]
+            concated_roadmap[i][k]=torch.stack(concated_roadmap[i][k])
+        concated_roadmap[i] = torch.stack(concated_roadmap[i])
+    concated_roadmap = torch.stack(concated_roadmap).long()
     return [concated_input, batch_bbox_list, batch_category_list, concated_roadmap, concated_loss_mask]
 
 
